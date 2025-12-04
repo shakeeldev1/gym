@@ -1,4 +1,3 @@
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { Role } from '../user.types';
@@ -13,7 +12,7 @@ export class User {
     @Prop({ required: true })
     lName: string;
 
-    @Prop({ required: true, unique: true })
+    @Prop({ required: true, unique: true, lowercase: true, trim: true })
     email: string;
 
     @Prop({ required: true })
@@ -22,13 +21,13 @@ export class User {
     @Prop({ default: Role.User })
     role: string;
 
-    @Prop()
-    otp: string;
+    @Prop({ type: String, default: null })
+    otp: string | null;
 
-    @Prop()
-    otpExpire: Date;
+    @Prop({ type: Date, default: null })
+    otpExpire: Date | null;
 
-    @Prop({ default: false })
+    @Prop({ type: Boolean, default: false })
     isVerified: boolean;
 }
 

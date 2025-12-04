@@ -51,6 +51,39 @@ export class AuthService {
         };
     }
 
+    async verifyEmail(email: string, otp: string) {
+        const user = await this.userService.findByEmail(email);
+
+        if (!user) {
+            throw new NotFoundException("User not found");
+        }
+
+        if (user.isVerified) {
+            return { success: true, message: "Already verified" };
+        }
+
+        if (!user.otp || user.otp !== otp) {
+            throw new UnauthorizedException("Invalid OTP");
+        }
+
+        if (!user.otpExpire || user.otpExpire < new Date()) {
+            throw new UnauthorizedException("OTP has expired");
+        }
+
+        user.isVerified = true;
+        user.otp = null;
+        user.otpExpire = null;
+        await user.save();
+
+        const token = await this.jwtService.signAsync({ id: user._id });
+
+        return {
+            success: true,
+            message: "Email verified successfully",
+            token,
+        };
+    }
+
     async loginUser(loginDto: LoginDto) {
         const user = await this.userService.findByEmail(loginDto.email);
         if (!user) {

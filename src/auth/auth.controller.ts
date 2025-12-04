@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/registerUser.dto';
 import { AuthGuard } from './auth.guard';
 import { UserService } from 'src/user/user.service';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -12,6 +13,12 @@ export class AuthController {
     async register(@Body() registerUserDto: RegisterDto) {
         const data = await this.authService.registerUser(registerUserDto);
         return data;
+    }
+
+    @Post('verify-email')
+    async verifyEmail(@Body() VerifyOtpDto:VerifyOtpDto) {
+        const isVerified = await this.authService.verifyEmail(VerifyOtpDto.email, VerifyOtpDto.otp);
+        return { verified: isVerified };
     }
 
     @Post("login")
