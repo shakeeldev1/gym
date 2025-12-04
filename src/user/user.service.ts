@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { RegisterDto } from 'src/auth/dto/registerUser.dto';
 import { User } from './schemas/user.schema';
@@ -14,7 +14,9 @@ export class UserService {
                 fName: registerUserDto.fName,
                 lName: registerUserDto.lName,
                 email: registerUserDto.email,
-                password: registerUserDto.password
+                password: registerUserDto.password,
+                otp: registerUserDto.otp,
+                otpExpire: registerUserDto.otpExpire
             });
         } catch (error: unknown) {
             const e = error as { code?: number };
@@ -26,4 +28,18 @@ export class UserService {
             }
         }
     }
+
+    async findByEmail(email: string) {
+        return this.userModel.findOne({ email });
+    }
+
+    async findUserById(id: string) {
+        const user = await this.userModel.findOne({ _id: id });
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+        return user;
+    }
+
+
 }
