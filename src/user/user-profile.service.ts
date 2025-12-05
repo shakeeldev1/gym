@@ -32,11 +32,6 @@ export class UserProfileService {
         return profile;
     }
 
-    async deleteProfile(userId: string): Promise<void> {
-        const result = await this.profileModel.findOneAndDelete({ userId });
-        if (!result) throw new NotFoundException('Profile not found');
-    }
-
     async getProfile(userId: string): Promise<UserProfile> {
         const profile = await this.profileModel.findOne({ userId });
         if (!profile) throw new NotFoundException('Profile not found');
