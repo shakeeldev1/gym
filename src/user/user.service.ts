@@ -107,5 +107,41 @@ export class UserService {
         return { message: 'Password has been reset successfully' };
     }
 
+    async getAllUsers() {
+        const result = await this.userModel.aggregate([
+            {
+                $lookup: {
+                    from: 'userprofiles',
+                    localField: '_id',
+                    foreignField: 'userId',
+                    as: 'profile'
+                },
+            },
+            {
+                $unwind: {
+                    path: '$profile',
+                    preserveNullAndEmptyArrays: true,
+                }
+            },
+            {
+                $project: {
+                    password: 0,
+                    resetOtp: 0,
+                    resetOtpExpire: 0,
+                    otp: 0,
+                    otpExpire: 0
+                }
+            },
+            {
+                $facet: {
+                    data: [{ $match: {} }],
+                    totalCount: [{ $count: 'count' }]
+                }
+            }
+        ]);
+        const users = result[0].data;
+        const total = result[0].totalCount[0]?.count || 0;
+        return { total, users };
+    }
 
 }

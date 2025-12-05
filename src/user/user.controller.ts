@@ -1,4 +1,4 @@
-import { Body, Controller, Patch, Request, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Request, UseGuards } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { AuthGuard } from "src/auth/auth.guard";
 import { ChangePasswordDto } from "./dto/changePassword";
@@ -25,6 +25,11 @@ export class UserController {
     @Patch('reset-password')
     async resetPassword(@Body() body: ResetPasswordDto) {
         return this.userService.resetPassword(body.email, body.resetOtp, body.newPassword);
+    }
+
+    @Get('all')
+    async getAllUsers(){
+        return this.userService.getAllUsers();
     }
 
 }
