@@ -27,6 +27,12 @@ export class User {
     @Prop({ type: Date, default: null })
     otpExpire: Date | null;
 
+    @Prop({type: String, default: null })
+    resetOtp: string | null;
+
+    @Prop({ type: Date, default: null })
+    resetOtpExpire: Date | null;
+
     @Prop({ type: Boolean, default: false })
     isVerified: boolean;
 }

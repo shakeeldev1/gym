@@ -17,7 +17,7 @@ export class AuthController {
     }
 
     @Post('verify-email')
-    async verifyEmail(@Body() VerifyOtpDto:VerifyOtpDto) {
+    async verifyEmail(@Body() VerifyOtpDto: VerifyOtpDto) {
         const isVerified = await this.authService.verifyEmail(VerifyOtpDto.email, VerifyOtpDto.otp);
         return { verified: isVerified };
     }
@@ -33,15 +33,7 @@ export class AuthController {
     async getProfile(@Request() req) {
         const userId = req.user.id;
         const user = await this.userService.findUserById(userId);
-        return {
-            id: user._id,
-            fName: user.fName,
-            lName: user.lName,
-            email: user.email,
-            role: user.role
-        }
+        return user;
     }
-
-    
 
 }
