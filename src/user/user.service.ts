@@ -17,6 +17,7 @@ export class UserService {
         private readonly profileService: UserProfileService,
         private readonly mailService: MailService
     ) { }
+    
     async createUser(registerUserDto: RegisterDto) {
         try {
             return await this.userModel.create({
