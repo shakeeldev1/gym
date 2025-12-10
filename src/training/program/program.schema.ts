@@ -26,6 +26,9 @@ export class Program {
     @Prop()
     durationWeeks?: number;
 
+    @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+    assignedTo?: string;
+
 }
 
 export const ProgramSchema = SchemaFactory.createForClass(Program);
