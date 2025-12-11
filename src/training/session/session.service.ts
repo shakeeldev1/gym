@@ -51,11 +51,19 @@ export class SessionService {
     }
 
     async getAllSessions(): Promise<Session[]> {
-        return this.sessionModel.find().populate('blocks').exec();
+        const sessions = await this.sessionModel.find().populate('blocks').exec();
+        if (sessions.length === 0) {
+            throw new NotFoundException('No sessions found');
+        }
+        return sessions;
     }
 
     async getSessionsByUser(userId: string): Promise<Session[]> {
-        return this.sessionModel.find({ user: userId }).populate('blocks').exec();
+        const sessions = await this.sessionModel.find({ user: userId }).populate('blocks').exec();
+        if (sessions.length === 0) {
+            throw new NotFoundException('No sessions found for this user');
+        }
+        return sessions;
     }
 
 }
