@@ -1,33 +1,22 @@
+// src/training/session/schemas/session.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type WorkoutSessionDocument = WorkoutSession & Document;
+export type SessionDocument = Session & Document;
 
 @Schema({ timestamps: true })
-export class WorkoutSession {
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-    userId: Types.ObjectId;
+export class Session {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  user: Types.ObjectId;
 
-    @Prop({ type: Types.ObjectId, ref: 'Workout' })
-    workoutId?: Types.ObjectId;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'WorkoutBlock' }], default: [] })
+  blocks: Types.ObjectId[];
 
-    @Prop()
-    startTime?: Date;
+  @Prop({ default: false })
+  completed: boolean;
 
-    @Prop()
-    endTime?: Date;
-
-    @Prop({ type: [Object], default: [] })
-    completedSets: any[];
-
-    @Prop()
-    totalVolume?: number;
-
-    @Prop()
-    caloriesBurned?: number;
-
-    @Prop({ default: 0 })
-    difficultyRating?: number;
+  @Prop()
+  notes?: string;
 }
 
-export const WorkoutSessionSchema = SchemaFactory.createForClass(WorkoutSession);
+export const SessionSchema = SchemaFactory.createForClass(Session);
