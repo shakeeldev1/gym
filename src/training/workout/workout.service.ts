@@ -1,4 +1,86 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateWorkoutBlockDto } from './dto/create-workout-block.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { WorkoutBlock } from './schemas/workout-block.schema';
+import { Model } from 'mongoose';
+import { UpdateWorkoutBlockDto } from './dto/update-workout-block.dto';
+import { AddSetDto } from './dto/add-set.dto';
+import { WorkoutSet } from './schemas/workout-set.schema';
+import { UpdateSetDto } from './dto/update-set.dto';
 
 @Injectable()
-export class WorkoutService {}
+export class WorkoutService {
+
+    constructor(@InjectModel(WorkoutBlock.name) private blockModel: Model<WorkoutBlock>,
+        @InjectModel(WorkoutSet.name) private setModel: Model<WorkoutSet>) { }
+
+    createWorkoutBlock(dto: CreateWorkoutBlockDto): Promise<WorkoutBlock> {
+        const newBlock = new this.blockModel(dto);
+        return newBlock.save();
+    }
+
+    async getOneBlock(id: string): Promise<WorkoutBlock> {
+        const block = await this.blockModel.findById(id).populate('exercises sets').exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+        return block;
+    }
+
+    async updateBlock(id: string, dto: UpdateWorkoutBlockDto): Promise<WorkoutBlock> {
+        const updateBlock = await this.blockModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+        if (!updateBlock) {
+            throw new NotFoundException('Workout block not found');
+        }
+        return updateBlock;
+    }
+
+    async deleteBlock(id: string): Promise<{ message: string }> {
+        const deleteResult = await this.blockModel.findByIdAndDelete(id).exec();
+        if (!deleteResult) {
+            throw new NotFoundException('Workout block not found');
+        }
+        return { message: 'Workout block deleted successfully' };
+    }
+
+    async addSetToBlock(blockId: string, dto: AddSetDto): Promise<WorkoutSet> {
+        const block = await this.blockModel.findById(blockId).exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+        const newSet = await this.setModel.create(dto);
+        block.sets.push(newSet._id);
+        await block.save();
+        return newSet;
+    }
+
+    async updateSetInBlock(blockId: string, setId: string, dto: UpdateSetDto): Promise<WorkoutSet> {
+        const block = await this.blockModel.findById(blockId).exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+        const updateSet = await this.setModel.findByIdAndUpdate(setId, dto, { new: true }).exec();
+        if (!updateSet) {
+            throw new NotFoundException('Workout set not found');
+        }
+        return updateSet;
+    }
+
+    async deleteSetInBlock(blockId: string, setId: string): Promise<{ message: string }> {
+        const block = await this.blockModel.findById(blockId).exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+        const deleteSet = await this.setModel.findByIdAndDelete(setId).exec();
+        if (!deleteSet) {
+            throw new NotFoundException('Workout set not found');
+        }
+        block.sets = block.sets.filter(sId => sId.toString() !== setId);
+        await block.save();
+        return { message: 'Workout set deleted successfully' };
+    }
+
+    async getAllBlocks(): Promise<WorkoutBlock[]> {
+        return this.blockModel.find().populate('exercises sets').exec();
+    }
+}
