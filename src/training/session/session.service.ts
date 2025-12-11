@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Session } from './schemas/session.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { UpdateSessionDto } from './dto/update-session.dto';
+import { AddBlockDto } from './dto/add-block.dto';
 
 @Injectable()
 export class SessionService {
@@ -12,4 +14,44 @@ export class SessionService {
         const session = new this.sessionModel(dto);
         return session.save();
     }
+
+    async getSession(id: string): Promise<Session | null> {
+        const session = await this.sessionModel.findById(id).exec();
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+        return session;
+    }
+
+    async updateSession(id: string, dto: UpdateSessionDto): Promise<Session | null> {
+        const session = await this.sessionModel.findByIdAndUpdate(id, dto, { new: true }).exec();
+        if (!session) {
+            throw new NotFoundException('Session not found');
+        }
+        return session;
+    }
+
+    async deleteSession(id: string): Promise<{ message: string }> {
+        const result = await this.sessionModel.findByIdAndDelete(id).exec();
+        if (!result) {
+            throw new NotFoundException('Session not found');
+        }
+        return { message: 'Session deleted successfully' };
+    }
+
+    async addBlockToSession(id: string, dto: AddBlockDto) {
+        const session = await this.sessionModel.findById(id).exec();
+        if (!session) throw new NotFoundException('Session not found');
+
+        if (!session.blocks.includes(new Types.ObjectId(dto.blockId))) {
+            session.blocks.push(new Types.ObjectId(dto.blockId));
+            await session.save();
+        }
+        return session;
+    }
+
+    async getAllSessions(): Promise<Session[]> {
+        return this.sessionModel.find().populate('blocks').exec();
+    }
+
 }
