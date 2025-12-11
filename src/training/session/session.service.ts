@@ -54,4 +54,8 @@ export class SessionService {
         return this.sessionModel.find().populate('blocks').exec();
     }
 
+    async getSessionsByUser(userId: string): Promise<Session[]> {
+        return this.sessionModel.find({ user: userId }).populate('blocks').exec();
+    }
+
 }

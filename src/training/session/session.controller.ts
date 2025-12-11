@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { SessionService } from './session.service';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -42,5 +42,12 @@ export class SessionController {
     @Get("get-all")
     async getAllSessions() {
         return this.sessionService.getAllSessions();
+    }
+
+    @UseGuards(AuthGuard)
+    @Get("my-sessions")
+    async getMySessions(@Request() req) {
+        const userId = req.user.id;
+        return this.sessionService.getSessionsByUser(userId);
     }
 }
