@@ -38,9 +38,11 @@ export class PerformanceService {
     async getAllPerformanceRecords(): Promise<{ message: string; totalRecords: number; data: Performance[] }> {
         const records = await this.performanceModel.find().populate('session').exec();
         const totalRecords = await this.performanceModel.countDocuments().exec();
+
         if (records.length === 0) {
             return { message: 'No performance records found', totalRecords: 0, data: [] };
         }
+        
         return { message: 'All performance records retrieved successfully', totalRecords, data: records };
     }
 }
