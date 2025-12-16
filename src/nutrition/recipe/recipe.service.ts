@@ -15,8 +15,8 @@ export class RecipeService {
     }
 
     async getAllRecipes(): Promise<{ message: string, totalRecipes: number, recipes: Recipe[] }> {
-        const recipes = await this.recipeModel.find().exec();
-        const totalRecipes = await this.recipeModel.countDocuments().exec();
+        const recipes = await this.recipeModel.find({isPublic:true}).populate('ingredients.food').exec();
+        const totalRecipes = await this.recipeModel.countDocuments({isPublic:true}).exec();
         if (!recipes) {
             throw new NotFoundException('No recipes found');
         }
@@ -24,7 +24,7 @@ export class RecipeService {
     }
 
     async getRecipesByUser(userId: string): Promise<{ message: string, totalRecipes: number, recipes: Recipe[] }> {
-        const recipes = await this.recipeModel.find({ createdBy: userId }).exec();
+        const recipes = await this.recipeModel.find({ createdBy: userId }).populate('ingredients.food').exec();
         const totalRecipes = await this.recipeModel.countDocuments({ createdBy: userId }).exec();
         if (!recipes) {
             throw new NotFoundException('No recipes found for this user');
@@ -33,7 +33,7 @@ export class RecipeService {
     }
 
     async getRecipeById(id: string): Promise<{ message: string, recipe?: Recipe }> {
-        const recipe = await this.recipeModel.findById(id).exec();
+        const recipe = await this.recipeModel.findById(id).populate('ingredients.food').exec();
         if (!recipe) {
             throw new NotFoundException('Recipe not found');
         }
