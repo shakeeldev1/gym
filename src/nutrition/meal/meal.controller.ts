@@ -11,14 +11,14 @@ export class MealController {
     @UseGuards(AuthGuard)
     @Post("create")
     async createMeal(@Request() req, @Body() dto: CreateMealDto) {
-        const userId = req.user.userId;
+        const userId = req.user.id;
         return this.mealService.createMeal(userId, dto);
     }
 
     @UseGuards(AuthGuard)
     @Get("find-by-date")
     async getMealsByDate(@Request() req, @Query("date") date: string) {
-        const userId = req.user.userId;
+        const userId = req.user.id;
         return this.mealService.getMealsByDate(userId, date);
     }
 
