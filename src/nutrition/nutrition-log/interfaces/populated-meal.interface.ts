@@ -3,6 +3,7 @@ export interface MacroSource {
   protein: number;
   carbs: number;
   fat: number;
+  date: Date;
 }
 
 export interface PopulatedMealItem {
@@ -12,5 +13,7 @@ export interface PopulatedMealItem {
 }
 
 export interface PopulatedMeal {
+  date: Date;
+  mealType: string;
   items: PopulatedMealItem[];
 }
