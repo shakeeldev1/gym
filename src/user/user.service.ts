@@ -17,7 +17,7 @@ export class UserService {
         private readonly profileService: UserProfileService,
         private readonly mailService: MailService
     ) { }
-    
+
     async createUser(registerUserDto: RegisterDto) {
         try {
             return await this.userModel.create({
@@ -144,5 +144,4 @@ export class UserService {
         const total = result[0].totalCount[0]?.count || 0;
         return { total, users };
     }
-
 }
