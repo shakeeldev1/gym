@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TrainingModule } from './training/training.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { FastingModule } from './fasting/fasting.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [AuthModule,
@@ -16,7 +17,8 @@ import { FastingModule } from './fasting/fasting.module';
     MongooseModule.forRoot(process.env.MONGODB_URL as string),
     TrainingModule,
     NutritionModule,
-    FastingModule],
+    FastingModule,
+    IntegrationsModule],
   controllers: [AppController],
   providers: [AppService],
 })
