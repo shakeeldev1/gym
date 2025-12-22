@@ -43,4 +43,8 @@ export class FastingService {
     async getFastingHistory(userId: string): Promise<Fasting[]> {
         return this.fastingModel.find({ user: new Types.ObjectId(userId) }).sort({ startTime: -1 }).exec();
     }
+
+    async getActiveFasting(userId: string): Promise<Fasting | null> {
+        return this.fastingModel.findOne({ user: new Types.ObjectId(userId), isActive: true }).exec();
+    }
 }

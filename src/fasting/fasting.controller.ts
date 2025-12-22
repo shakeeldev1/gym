@@ -25,4 +25,10 @@ export class FastingController {
     async getFastingHistory(@Request() req){
         return this.fastingService.getFastingHistory(req.user.id);
     }
+
+    @UseGuards(AuthGuard)
+    @Get("active")
+    async getActiveFasting(@Request() req){
+        return this.fastingService.getActiveFasting(req.user.id);
+    }
 }
