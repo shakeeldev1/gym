@@ -18,6 +18,12 @@ export class Fasting {
   goalDurationHours?: number; 
 
   @Prop()
+  actualDurationHours?: number;
+
+  @Prop()
+  goalHours?: number;
+
+  @Prop()
   notes?: string;
 
   @Prop({ default: false })

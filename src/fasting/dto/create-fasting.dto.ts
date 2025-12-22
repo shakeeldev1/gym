@@ -7,6 +7,9 @@ export class CreateFastingDto {
   goalDurationHours?: number; 
 
   @IsOptional()
+  goalHours?: number;
+
+  @IsOptional()
   @IsString()
   notes?: string;
 }
