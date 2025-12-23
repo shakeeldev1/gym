@@ -9,6 +9,7 @@ import { TrainingModule } from './training/training.module';
 import { NutritionModule } from './nutrition/nutrition.module';
 import { FastingModule } from './fasting/fasting.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { HabitsModule } from './habits/habits.module';
 
 @Module({
   imports: [AuthModule,
@@ -18,7 +19,8 @@ import { IntegrationsModule } from './integrations/integrations.module';
     TrainingModule,
     NutritionModule,
     FastingModule,
-    IntegrationsModule],
+    IntegrationsModule,
+    HabitsModule],
   controllers: [AppController],
   providers: [AppService],
 })
