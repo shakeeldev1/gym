@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Habit, HabitDocument } from './schemas/habit.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { LogHabitDto } from './dto/log-habit.dto';
 import { HabitLog, HabitLogDocument } from './schemas/habit-log.schema';
@@ -43,5 +43,85 @@ export class HabitsService {
         }));
         return summary;
     }
+
+    async getHabitStreak(userId: string, habitId: string) {
+        const user = userId;
+        const habit = habitId;
+
+        const logs = await this.habitLogModel
+            .find({
+                user,
+                habit,
+                $or: [
+                    { completed: true },
+                    { value: { $gt: 0 } }
+                ]
+            })
+            .sort({ date: -1 })
+            .lean()
+            .exec();
+
+        if (logs.length === 0) {
+            return {
+                habitId,
+                currentStreak: 0,
+                longestStreak: 0,
+                lastCompletedDate: null,
+                missedToday: true,
+            };
+        }
+
+        let currentStreak = 0;
+        let longestStreak = 0;
+        let streak = 0;
+
+        let previousDate: Date | null = null;
+
+        for (const log of logs) {
+            const currentDate = new Date(log.date);
+            currentDate.setHours(0, 0, 0, 0);
+
+            if (!previousDate) {
+                streak = 1;
+            } else {
+                const diff =
+                    (previousDate.getTime() - currentDate.getTime()) /
+                    (1000 * 60 * 60 * 24);
+
+                if (diff === 1) {
+                    streak++;
+                } else {
+                    longestStreak = Math.max(longestStreak, streak);
+                    streak = 1;
+                }
+            }
+
+            previousDate = currentDate;
+        }
+
+        longestStreak = Math.max(longestStreak, streak);
+
+        // Current streak check (today or yesterday)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const lastDate = new Date(logs[0].date);
+        lastDate.setHours(0, 0, 0, 0);
+
+        const diffFromToday =
+            (today.getTime() - lastDate.getTime()) /
+            (1000 * 60 * 60 * 24);
+
+        currentStreak = diffFromToday <= 1 ? streak : 0;
+
+        return {
+            habitId,
+            currentStreak,
+            longestStreak,
+            lastCompletedDate: lastDate,
+            missedToday: diffFromToday > 0,
+        };
+    }
+
 
 }
