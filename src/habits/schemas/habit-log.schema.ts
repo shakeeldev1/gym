@@ -6,15 +6,15 @@ export type HabitLogDocument = HabitLog & Document;
 @Schema({ timestamps: true })
 export class HabitLog {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  user: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Habit', required: true })
-  habitId: Types.ObjectId;
+  habit: Types.ObjectId;
 
   @Prop({ required: true })
   date: string;
 
-  @Prop({ required: true })
+  @Prop({ type: [Number, Boolean], required: true })
   value: boolean | number;
 }
 
