@@ -10,6 +10,7 @@ import { NutritionModule } from './nutrition/nutrition.module';
 import { FastingModule } from './fasting/fasting.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { HabitsModule } from './habits/habits.module';
+import { MindsetRecoveryModule } from './mindset-recovery/mindset-recovery.module';
 
 @Module({
   imports: [AuthModule,
@@ -20,7 +21,8 @@ import { HabitsModule } from './habits/habits.module';
     NutritionModule,
     FastingModule,
     IntegrationsModule,
-    HabitsModule],
+    HabitsModule,
+    MindsetRecoveryModule],
   controllers: [AppController],
   providers: [AppService],
 })
