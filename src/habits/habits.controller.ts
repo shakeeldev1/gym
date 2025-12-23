@@ -3,6 +3,7 @@ import { HabitsService } from './habits.service';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { LogHabitDto } from './dto/log-habit.dto';
+import { HabitCalendarEntry } from './types';
 
 @Controller('habits')
 export class HabitsController {
@@ -37,4 +38,15 @@ export class HabitsController {
     async getHabitStreak(@Request() req, @Param('id') habitId: string) {
         return this.habitsService.getHabitStreak(req.user.id, habitId);
     }
+
+    @UseGuards(AuthGuard)
+    @Get(':id/calendar')
+    async getHabitCalendar(
+        @Param('habitId') habitId: string,
+        @Query('month') month: string,
+        @Request() req
+    ): Promise<{ habitId: string; month: string; calendar: HabitCalendarEntry[] }> {
+        return this.habitsService.getHabitCalendar(req.user.id, habitId, month);
+    }
+
 }

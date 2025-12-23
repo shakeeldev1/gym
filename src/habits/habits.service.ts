@@ -5,6 +5,7 @@ import { Model, Types } from 'mongoose';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { LogHabitDto } from './dto/log-habit.dto';
 import { HabitLog, HabitLogDocument } from './schemas/habit-log.schema';
+import { HabitCalendarEntry } from './types';
 
 @Injectable()
 export class HabitsService {
@@ -100,8 +101,6 @@ export class HabitsService {
         }
 
         longestStreak = Math.max(longestStreak, streak);
-
-        // Current streak check (today or yesterday)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -122,6 +121,67 @@ export class HabitsService {
             missedToday: diffFromToday > 0,
         };
     }
+
+
+    async getHabitCalendar(
+        userId: string,
+        habitId: string,
+        month: string // YYYY-MM
+    ) {
+        const user = userId;
+        const habit = habitId;
+
+        const startDate = new Date(`${month}-01`);
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+        endDate.setDate(0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const logs = await this.habitLogModel
+            .find({
+                user,
+                habit,
+                date: { $gte: startDate, $lte: endDate },
+                $or: [
+                    { completed: true },
+                    { value: { $gt: 0 } }
+                ]
+            })
+            .lean()
+            .exec();
+
+        const completedDates = new Set(
+            logs.map(log => {
+                const d = new Date(log.date);
+                d.setHours(0, 0, 0, 0);
+                return d.toISOString().split('T')[0];
+            })
+        );
+
+        // Fix: explicitly type calendar array
+        const calendar: HabitCalendarEntry[] = [];
+        const current = new Date(startDate);
+
+        while (current <= endDate) {
+            const isoDate = current.toISOString().split('T')[0];
+
+            calendar.push({
+                date: isoDate,
+                completed: completedDates.has(isoDate),
+            });
+
+            current.setDate(current.getDate() + 1);
+        }
+
+        return {
+            habitId,
+            month,
+            calendar,
+        };
+    }
+
 
 
 }
