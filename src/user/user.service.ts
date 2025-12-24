@@ -53,13 +53,8 @@ export class UserService {
             throw new UnauthorizedException('User not found');
         }
         const profile = await this.profileService.getProfile(id);
-        if (profile) {
-            return { user, profile };
-        } else {
-            return { user };
-        }
+        return profile ? { user, profile } : { user };
     }
-
 
     async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
         const user = await this.userModel.findById(userId);
