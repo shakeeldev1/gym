@@ -53,9 +53,11 @@ export class UserService {
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
+        const { password, otp, ...safeUser } = user.toObject();
         const profile = await this.profileService.getProfile(objectId);
-        return profile ? { user, profile } : { user };
+        return profile ? { user: safeUser, profile } : { user: safeUser };
     }
+
 
 
     async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
