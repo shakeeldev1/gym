@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { MailService } from 'src/auth/mail.service';
 import { UserProfileService } from './user-profile.service';
+import { profile } from 'console';
 
 @Injectable()
 export class UserService {
@@ -53,8 +54,8 @@ export class UserService {
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        const profile = await this.profileService.getProfile(id);
-        return profile ? { user, profile } : { user };
+        // const profile = await this.profileService.getProfile(id);
+        return { user };
     }
 
 
