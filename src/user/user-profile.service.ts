@@ -32,10 +32,9 @@ export class UserProfileService {
         return profile;
     }
 
-    async getProfile(userId: string): Promise<UserProfile> {
+    async getProfile(userId: string): Promise<UserProfile | null> {
         const profile = await this.profileModel.findOne({ userId });
-        if (!profile) throw new NotFoundException('Profile not found');
-        return profile;
+        return profile || null;
     }
 
     async updateUserAndProfile(userId: string, body: any) {
