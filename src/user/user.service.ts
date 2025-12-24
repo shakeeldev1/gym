@@ -53,7 +53,7 @@ export class UserService {
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        const profile = await this.profileService.getProfile(id);
+        const profile = await this.profileService.getProfile(objectId);
         return profile ? { user, profile } : { user };
     }
 

@@ -32,7 +32,7 @@ export class UserProfileService {
         return profile;
     }
 
-    async getProfile(userId: string): Promise<UserProfile | null> {
+    async getProfile(userId: string | object): Promise<UserProfile | null> {
         const profile = await this.profileModel.findOne({ userId });
         return profile || null;
     }
