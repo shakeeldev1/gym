@@ -49,12 +49,14 @@ export class UserService {
         }
         const objectId = new Types.ObjectId(id);
         const user = await this.userModel.findOne({ _id: objectId });
+
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
         const profile = await this.profileService.getProfile(id);
         return profile ? { user, profile } : { user };
     }
+
 
     async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
         const user = await this.userModel.findById(userId);

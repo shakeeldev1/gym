@@ -32,8 +32,7 @@ export class AuthController {
     @Get('profile')
     async getProfile(@Request() req) {
         const userId = req.user.id;
-        const user = await this.userService.findUserById(userId);
-        return user;
+        return await this.userService.findUserById(userId);
     }
 
 }
