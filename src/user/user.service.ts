@@ -2,7 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { InjectModel } from '@nestjs/mongoose';
 import { RegisterDto } from 'src/auth/dto/registerUser.dto';
 import { User } from './schemas/user.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ChangePasswordDto } from './dto/changePassword';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -44,15 +44,16 @@ export class UserService {
     }
 
     async findUserById(id: string) {
-        const user = await this.userModel.findOne({ _id: id });
+        if (!Types.ObjectId.isValid(id)) {
+            throw new UnauthorizedException('Invalid user id');
+        }
+        const objectId = new Types.ObjectId(id);
+        const user = await this.userModel.findOne({ _id: objectId });
         const profile = await this.profileService.getProfile(id);
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        return {
-            user,
-            profile
-        };
+        return { user, profile };
     }
 
     async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
