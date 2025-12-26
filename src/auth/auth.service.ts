@@ -17,7 +17,7 @@ export class AuthService {
         private readonly jwtService: JwtService,
         private readonly mailService: MailService,
         private readonly configService: ConfigService,
-    ) { 
+    ) {
         this.googleClient = new OAuth2Client(
             process.env.GOOGLE_CLIENT_ID || this.configService.get<string>('GOOGLE_CLIENT_ID')
         );
@@ -198,10 +198,9 @@ export class AuthService {
     }
 
     async facebookLogin(accessToken: string) {
-        // Verify Facebook access token by calling Facebook Graph API
         const appId = process.env.FACEBOOK_APP_ID || this.configService.get<string>('FACEBOOK_APP_ID');
         const appSecret = process.env.FACEBOOK_APP_SECRET || this.configService.get<string>('FACEBOOK_APP_SECRET');
-        
+
         try {
             // Verify the access token with Facebook
             const response = await fetch(
@@ -259,7 +258,6 @@ export class AuthService {
         }
     }
 
-    // For Passport FacebookStrategy compatibility
     async validateFacebookUser(params: {
         facebookId: string;
         email: string;
@@ -268,8 +266,6 @@ export class AuthService {
         picture?: string;
     }) {
         const { facebookId, email, firstName, lastName } = params;
-        
-        // Try to find by email first, then by facebookId
         let user = await this.userService.findByEmail(email);
 
         if (!user) {
