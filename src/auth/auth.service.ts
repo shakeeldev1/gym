@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { MailService } from './mail.service';
 import { ConfigService } from '@nestjs/config';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
@@ -15,8 +16,14 @@ export class AuthService {
         private readonly userService: UserService,
         private readonly jwtService: JwtService,
         private readonly mailService: MailService,
-        private readonly configService: ConfigService
-    ) { }
+        private readonly configService: ConfigService,
+    ) { 
+        this.googleClient = new OAuth2Client(
+            process.env.GOOGLE_CLIENT_ID || this.configService.get<string>('GOOGLE_CLIENT_ID')
+        );
+    }
+
+    private googleClient: OAuth2Client;
 
     async registerUser(registerUserDto: RegisterDto) {
 
@@ -98,6 +105,197 @@ export class AuthService {
         const payload = { id: user._id };
         const token = await this.jwtService.signAsync(payload);
         return token;
+    }
+
+    async googleLogin(idToken: string) {
+        const ticket = await this.googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID || this.configService.get<string>('GOOGLE_CLIENT_ID'),
+        });
+
+        const payload = ticket.getPayload();
+        if (!payload) {
+            throw new UnauthorizedException('Invalid Google token');
+        }
+
+        const { sub, email, email_verified, name, picture, given_name, family_name } = payload as any;
+
+        if (!email_verified) {
+            throw new UnauthorizedException('Google email not verified');
+        }
+
+        let user = await this.userService.findByEmail(email);
+
+        const firstName = given_name || (name ? String(name).split(' ')[0] : '');
+        const lastName = family_name || (name ? String(name).split(' ').slice(1).join(' ') || '' : '');
+
+        // First time Google login → create base user then link Google
+        if (!user) {
+            const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+            user = await this.userService.createUser({
+                fName: firstName || 'Google',
+                lName: lastName || 'User',
+                email,
+                password: randomPassword,
+                otp: null,
+                otpExpire: null,
+            } as any);
+            user.googleId = sub;
+            user.authProvider = 'google';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        if (!user.googleId) {
+            user.googleId = sub;
+            user.authProvider = 'google';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        const token = await this.jwtService.signAsync({ id: (user as any)._id });
+        return { token, user };
+    }
+
+    async validateGoogleUser(params: {
+        googleId: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        picture?: string;
+    }) {
+        const { googleId, email, firstName, lastName } = params;
+        let user = await this.userService.findByEmail(email);
+
+        if (!user) {
+            const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+            user = await this.userService.createUser({
+                fName: firstName || 'Google',
+                lName: lastName || 'User',
+                email,
+                password: randomPassword,
+                otp: null,
+                otpExpire: null,
+            } as any);
+            user.googleId = googleId;
+            user.authProvider = 'google';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        if (!user.googleId) {
+            user.googleId = googleId;
+            user.authProvider = 'google';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        return user;
+    }
+
+    async createJwtForUser(user: any) {
+        return this.jwtService.signAsync({ id: (user as any)._id });
+    }
+
+    async facebookLogin(accessToken: string) {
+        // Verify Facebook access token by calling Facebook Graph API
+        const appId = process.env.FACEBOOK_APP_ID || this.configService.get<string>('FACEBOOK_APP_ID');
+        const appSecret = process.env.FACEBOOK_APP_SECRET || this.configService.get<string>('FACEBOOK_APP_SECRET');
+        
+        try {
+            // Verify the access token with Facebook
+            const response = await fetch(
+                `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`
+            );
+            const data = await response.json();
+
+            if (!data.data || !data.data.is_valid) {
+                throw new UnauthorizedException('Invalid Facebook access token');
+            }
+
+            // Get user profile from Facebook
+            const profileResponse = await fetch(
+                `https://graph.facebook.com/me?fields=id,email,first_name,last_name,picture&access_token=${accessToken}`
+            );
+            const profile = await profileResponse.json();
+
+            if (!profile.email) {
+                throw new UnauthorizedException('Facebook account must have an email address');
+            }
+
+            const { id, email, first_name, last_name, picture } = profile;
+            const userEmail = email || `facebook_${id}@placeholder.local`;
+            let user = await this.userService.findByEmail(userEmail);
+
+            // First time Facebook login → create user
+            if (!user) {
+                const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+                user = await this.userService.createUser({
+                    fName: first_name || 'Facebook',
+                    lName: last_name || 'User',
+                    email: userEmail,
+                    password: randomPassword,
+                    otp: null,
+                    otpExpire: null,
+                } as any);
+                (user as any).facebookId = id;
+                (user as any).authProvider = 'facebook';
+                user.isVerified = true;
+                await (user as any).save();
+            }
+
+            // Existing local user → link Facebook if not linked
+            if (!(user as any).facebookId) {
+                (user as any).facebookId = id;
+                (user as any).authProvider = 'facebook';
+                user.isVerified = true;
+                await (user as any).save();
+            }
+
+            const token = await this.jwtService.signAsync({ id: (user as any)._id });
+            return { token, user };
+        } catch (error) {
+            throw new UnauthorizedException('Failed to verify Facebook access token');
+        }
+    }
+
+    // For Passport FacebookStrategy compatibility
+    async validateFacebookUser(params: {
+        facebookId: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        picture?: string;
+    }) {
+        const { facebookId, email, firstName, lastName } = params;
+        
+        // Try to find by email first, then by facebookId
+        let user = await this.userService.findByEmail(email);
+
+        if (!user) {
+            const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
+            user = await this.userService.createUser({
+                fName: firstName || 'Facebook',
+                lName: lastName || 'User',
+                email,
+                password: randomPassword,
+                otp: null,
+                otpExpire: null,
+            } as any);
+            (user as any).facebookId = facebookId;
+            (user as any).authProvider = 'facebook';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        if (!(user as any).facebookId) {
+            (user as any).facebookId = facebookId;
+            (user as any).authProvider = 'facebook';
+            user.isVerified = true;
+            await (user as any).save();
+        }
+
+        return user;
     }
 
 }

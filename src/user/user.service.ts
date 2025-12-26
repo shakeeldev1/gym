@@ -58,8 +58,6 @@ export class UserService {
         return profile ? { user: safeUser, profile } : { user: safeUser };
     }
 
-
-
     async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
         const user = await this.userModel.findById(userId);
         if (!user) {
