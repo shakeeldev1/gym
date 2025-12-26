@@ -202,7 +202,6 @@ export class AuthService {
         const appSecret = process.env.FACEBOOK_APP_SECRET || this.configService.get<string>('FACEBOOK_APP_SECRET');
 
         try {
-            // Verify the access token with Facebook
             const response = await fetch(
                 `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${appId}|${appSecret}`
             );
@@ -211,8 +210,6 @@ export class AuthService {
             if (!data.data || !data.data.is_valid) {
                 throw new UnauthorizedException('Invalid Facebook access token');
             }
-
-            // Get user profile from Facebook
             const profileResponse = await fetch(
                 `https://graph.facebook.com/me?fields=id,email,first_name,last_name,picture&access_token=${accessToken}`
             );
@@ -225,8 +222,6 @@ export class AuthService {
             const { id, email, first_name, last_name, picture } = profile;
             const userEmail = email || `facebook_${id}@placeholder.local`;
             let user = await this.userService.findByEmail(userEmail);
-
-            // First time Facebook login → create user
             if (!user) {
                 const randomPassword = await bcrypt.hash(crypto.randomUUID(), 10);
                 user = await this.userService.createUser({
@@ -242,8 +237,6 @@ export class AuthService {
                 user.isVerified = true;
                 await (user as any).save();
             }
-
-            // Existing local user → link Facebook if not linked
             if (!(user as any).facebookId) {
                 (user as any).facebookId = id;
                 (user as any).authProvider = 'facebook';
