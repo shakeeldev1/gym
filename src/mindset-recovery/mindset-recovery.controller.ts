@@ -24,6 +24,12 @@ export class MindsetRecoveryController {
     }
 
     @UseGuards(AuthGuard)
+    @Get("meditation/all")
+    async getAllMeditations() {
+        return this.mindsetRecoveryService.getAllMeditations();
+    }
+
+    @UseGuards(AuthGuard)
     @Post("breathwork")
     async addBreathwork(@Request() req, @Body() dto: CreateBreathworkDto) {
         return this.mindsetRecoveryService.addBreathwork(req.user.id, dto);

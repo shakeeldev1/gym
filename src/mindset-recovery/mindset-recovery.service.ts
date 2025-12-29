@@ -36,6 +36,10 @@ export class MindsetRecoveryService {
         return this.meditationModel.find(query).exec();
     }
 
+    async getAllMeditations() {
+        return this.meditationModel.find().sort({ date: -1 }).limit(100).exec();
+    }
+
     async addBreathwork(userId: string, dto: CreateBreathworkDto) {
         const newBreathwork = new this.breathworkModel({
             user: userId,
