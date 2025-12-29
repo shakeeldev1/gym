@@ -50,20 +50,14 @@ export class SessionService {
         return session;
     }
 
-    async getAllSessions(): Promise<Session[]> {
+    async getAllSessions(): Promise<{ sessions: Session[]; total: number }> {
         const sessions = await this.sessionModel.find().populate('blocks').exec();
-        if (sessions.length === 0) {
-            throw new NotFoundException('No sessions found');
-        }
-        return sessions;
+        return { sessions, total: sessions.length };
     }
 
-    async getSessionsByUser(userId: string): Promise<Session[]> {
+    async getSessionsByUser(userId: string): Promise<{ sessions: Session[]; total: number }> {
         const sessions = await this.sessionModel.find({ user: userId }).populate('blocks').exec();
-        if (sessions.length === 0) {
-            throw new NotFoundException('No sessions found for this user');
-        }
-        return sessions;
+        return { sessions, total: sessions.length };
     }
 
 }
