@@ -13,6 +13,7 @@ import { HabitsModule } from './habits/habits.module';
 import { MindsetRecoveryModule } from './mindset-recovery/mindset-recovery.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SleepModule } from './sleep/sleep.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [AuthModule,
@@ -26,7 +27,8 @@ import { SleepModule } from './sleep/sleep.module';
     HabitsModule,
     MindsetRecoveryModule,
     AnalyticsModule,
-    SleepModule],
+    SleepModule,
+    ReportsModule],
   controllers: [AppController],
   providers: [AppService],
 })
