@@ -97,13 +97,15 @@ export class AuthService {
         if (!user) {
             throw new NotFoundException("User not found");
         }
-        const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-        if (!isPasswordValid) {
-            // Delete user if authentication fails
+        if (!user.isVerified) {
             await this.userService.deleteUser(user._id.toString());
             throw new UnauthorizedException("Invalid credentials. User account has been deleted. Please signup again.");
         }
 
+        const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
         const payload = { id: user._id };
         const token = await this.jwtService.signAsync(payload);
         return token;
