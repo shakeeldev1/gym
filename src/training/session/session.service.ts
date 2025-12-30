@@ -43,8 +43,11 @@ export class SessionService {
         const session = await this.sessionModel.findById(id).exec();
         if (!session) throw new NotFoundException('Session not found');
 
-        if (!session.blocks.includes(new Types.ObjectId(dto.blockId))) {
-            session.blocks.push(new Types.ObjectId(dto.blockId));
+        const blockObjectId = new Types.ObjectId(dto.blockId);
+        const alreadyLinked = session.blocks.some(b => b.toString() === blockObjectId.toString());
+
+        if (!alreadyLinked) {
+            session.blocks.push(blockObjectId);
             await session.save();
         }
         return session;
