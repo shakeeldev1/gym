@@ -1,10 +1,10 @@
-import { IsString, IsEnum, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 export class CreateReportDto {
   @IsString()
   name: string;
 
-  @IsEnum(['monthly', 'quarterly', 'individual', 'team', 'annual'])
+  @IsString()
   type: string;
 
   @IsOptional()

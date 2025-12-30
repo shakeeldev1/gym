@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, Request, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { AuthGuard } from '../auth/auth.guard';
@@ -9,8 +9,16 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Post()
-  create(@Request() req, @Body() createReportDto: CreateReportDto) {
-    return this.reportsService.create(req.user.userId, createReportDto);
+  async create(@Request() req, @Body() createReportDto: CreateReportDto) {
+    try {
+      return await this.reportsService.create(req.user.userId, createReportDto);
+    } catch (error) {
+      console.error('Error creating report:', error);
+      throw new HttpException(
+        error.message || 'Failed to create report',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Get()
