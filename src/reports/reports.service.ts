@@ -16,9 +16,13 @@ export class ReportsService {
 
     const report = new this.reportModel({
       coach: coachId,
-      ...createReportDto,
+      name: createReportDto.name,
+      type: createReportDto.type,
+      athletes: createReportDto.athletes || [],
       athleteCount,
       size,
+      data: createReportDto.data || {},
+      status: 'generated',
     });
 
     return report.save();
