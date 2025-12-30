@@ -11,7 +11,11 @@ export class ReportsController {
   @Post()
   async create(@Request() req, @Body() createReportDto: CreateReportDto) {
     try {
-      return await this.reportsService.create(req.user.userId, createReportDto);
+      const coachId = req.user.id;
+      if (!coachId) {
+        throw new HttpException('User ID not found in token', HttpStatus.UNAUTHORIZED);
+      }
+      return await this.reportsService.create(coachId, createReportDto);
     } catch (error) {
       console.error('Error creating report:', error);
       throw new HttpException(
@@ -23,16 +27,16 @@ export class ReportsController {
 
   @Get()
   findAll(@Request() req, @Query('type') type?: string) {
-    return this.reportsService.findAll(req.user.userId, type);
+    return this.reportsService.findAll(req.user.id, type);
   }
 
   @Get(':id')
   findOne(@Request() req, @Param('id') id: string) {
-    return this.reportsService.findOne(id, req.user.userId);
+    return this.reportsService.findOne(id, req.user.id);
   }
 
   @Delete(':id')
   remove(@Request() req, @Param('id') id: string) {
-    return this.reportsService.remove(id, req.user.userId);
+    return this.reportsService.remove(id, req.user.id);
   }
 }
