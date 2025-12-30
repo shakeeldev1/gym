@@ -74,13 +74,13 @@ export class AnalyticsService {
       weekMeditation
     ] = await Promise.all([
       this.sessionModel.countDocuments({ user: userId }),
-      this.sessionModel.countDocuments({ user: userId, createdAt: { $gte: weekStart } }),
+      this.sessionModel.countDocuments({ user: userId, createdAt: { $gte: weekStart } } as any),
       this.mealModel.countDocuments({ user: userId }),
-      this.mealModel.countDocuments({ user: userId, createdAt: { $gte: todayStart } }),
+      this.mealModel.countDocuments({ user: userId, date: { $gte: todayStart } }),
       this.fastingModel.countDocuments({ user: userId }),
-      this.fastingModel.countDocuments({ user: userId, createdAt: { $gte: monthStart } }),
+      this.fastingModel.countDocuments({ user: userId, startTime: { $gte: monthStart } }),
       this.meditationModel.countDocuments({ user: userId }),
-      this.meditationModel.countDocuments({ user: userId, createdAt: { $gte: weekStart } })
+      this.meditationModel.countDocuments({ user: userId, date: { $gte: weekStart } })
     ])
 
     return {
@@ -106,44 +106,44 @@ export class AnalyticsService {
   async getUserActivity(userId: string, limit: number = 5) {
     // Get recent activities from different collections
     const [sessions, meals, fasting, meditation, sleep] = await Promise.all([
-      this.sessionModel.find({ user: userId }).sort({ createdAt: -1 }).limit(2).lean(),
-      this.mealModel.find({ user: userId }).sort({ createdAt: -1 }).limit(2).lean(),
-      this.fastingModel.find({ user: userId }).sort({ createdAt: -1 }).limit(1).lean(),
-      this.meditationModel.find({ user: userId }).sort({ createdAt: -1 }).limit(1).lean(),
-      this.sleepModel.find({ user: userId }).sort({ createdAt: -1 }).limit(1).lean()
+      this.sessionModel.find({ user: userId }).sort({ _id: -1 }).limit(2).lean(),
+      this.mealModel.find({ user: userId }).sort({ date: -1 }).limit(2).lean(),
+      this.fastingModel.find({ user: userId }).sort({ startTime: -1 }).limit(1).lean(),
+      this.meditationModel.find({ user: userId }).sort({ date: -1 }).limit(1).lean(),
+      this.sleepModel.find({ user: userId }).sort({ date: -1 }).limit(1).lean()
     ])
 
     // Combine and format activities
     const activities = [
-      ...sessions.map(s => ({
+      ...sessions.map((s: any) => ({
         type: 'training',
         description: 'Completed workout session',
-        createdAt: s.createdAt,
-        timestamp: s.createdAt
+        createdAt: s.createdAt || s._id.getTimestamp(),
+        timestamp: s.createdAt || s._id.getTimestamp()
       })),
-      ...meals.map(m => ({
+      ...meals.map((m: any) => ({
         type: 'nutrition',
-        description: `Logged ${m.name || 'meal'} - ${m.calories || 0} calories`,
-        createdAt: m.createdAt,
-        timestamp: m.createdAt
+        description: `Logged meal`,
+        createdAt: m.createdAt || m.date,
+        timestamp: m.createdAt || m.date
       })),
-      ...fasting.map(f => ({
+      ...fasting.map((f: any) => ({
         type: 'fasting',
-        description: `Completed ${((f.endTime?.getTime() - f.startTime?.getTime()) / 3600000).toFixed(1)}-hour fast`,
-        createdAt: f.createdAt,
-        timestamp: f.createdAt
+        description: `Completed ${f.endTime ? ((f.endTime.getTime() - f.startTime.getTime()) / 3600000).toFixed(1) : 'ongoing'}-hour fast`,
+        createdAt: f.createdAt || f.startTime,
+        timestamp: f.createdAt || f.startTime
       })),
-      ...meditation.map(m => ({
+      ...meditation.map((m: any) => ({
         type: 'meditation',
-        description: `Completed ${m.duration || 10}-minute meditation`,
-        createdAt: m.createdAt,
-        timestamp: m.createdAt
+        description: `Completed ${m.durationMinutes || 10}-minute meditation`,
+        createdAt: m.createdAt || m.date,
+        timestamp: m.createdAt || m.date
       })),
-      ...sleep.map(s => ({
+      ...sleep.map((s: any) => ({
         type: 'sleep',
         description: `Logged ${s.durationHours || 0} hours of sleep`,
-        createdAt: s.createdAt,
-        timestamp: s.createdAt
+        createdAt: s.createdAt || s.date,
+        timestamp: s.createdAt || s.date
       }))
     ]
 
