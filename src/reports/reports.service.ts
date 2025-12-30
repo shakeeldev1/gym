@@ -32,11 +32,11 @@ export class ReportsService {
     return this.reportModel.find(query).sort({ createdAt: -1 }).exec();
   }
 
-  async findOne(id: string, coachId: string): Promise<Report> {
+  async findOne(id: string, coachId: string): Promise<Report | null> {
     return this.reportModel.findOne({ _id: id, coach: coachId }).exec();
   }
 
-  async remove(id: string, coachId: string): Promise<Report> {
+  async remove(id: string, coachId: string): Promise<Report | null> {
     return this.reportModel.findOneAndDelete({ _id: id, coach: coachId }).exec();
   }
 }
