@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Request, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Patch, Request, UseGuards, Param } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { AuthGuard } from "src/auth/auth.guard";
 import { ChangePasswordDto } from "./dto/changePassword";
@@ -30,6 +30,21 @@ export class UserController {
     @Get('all')
     async getAllUsers(){
         return this.userService.getAllUsers();
+    }
+
+    @UseGuards(AuthGuard)
+    @Delete(':id')
+    async deleteUser(@Param('id') userId: string) {
+        return this.userService.deleteUser(userId);
+    }
+
+    @UseGuards(AuthGuard)
+    @Patch(':id/role')
+    async updateUserRole(
+        @Param('id') userId: string,
+        @Body() body: { role: string }
+    ) {
+        return this.userService.updateUserRole(userId, body.role);
     }
 
 }

@@ -159,4 +159,25 @@ export class UserService {
         }
         return { message: 'User account has been deleted' };
     }
+
+    async updateUserRole(userId: string, role: string) {
+        if (!Types.ObjectId.isValid(userId)) {
+            throw new UnauthorizedException('Invalid user id');
+        }
+        const objectId = new Types.ObjectId(userId);
+        const validRoles = ['user', 'admin', 'coach'];
+        if (!validRoles.includes(role)) {
+            throw new UnauthorizedException(`Invalid role. Valid roles are: ${validRoles.join(', ')}`);
+        }
+        const user = await this.userModel.findByIdAndUpdate(
+            objectId,
+            { role },
+            { new: true }
+        );
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+        const { password, otp, resetOtp, resetOtpExpire, otpExpire, ...safeUser } = user.toObject();
+        return { message: 'User role updated successfully', user: safeUser };
+    }
 }
