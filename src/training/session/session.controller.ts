@@ -40,8 +40,9 @@ export class SessionController {
 
     @UseGuards(AuthGuard)
     @Get("get-all")
-    async getAllSessions() {
-        return this.sessionService.getAllSessions();
+    async getAllSessions(@Request() req) {
+        const status = req?.query?.status as string | undefined;
+        return this.sessionService.getAllSessions(status);
     }
 
     @UseGuards(AuthGuard)

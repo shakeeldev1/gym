@@ -50,13 +50,25 @@ export class SessionService {
         return session;
     }
 
-    async getAllSessions(): Promise<{ sessions: Session[]; total: number }> {
-        const sessions = await this.sessionModel.find().populate('blocks').exec();
+    async getAllSessions(status?: string): Promise<{ sessions: Session[]; total: number }> {
+        const filter: Record<string, any> = {};
+        if (status === 'completed') filter.completed = true;
+        if (status === 'upcoming') filter.completed = false;
+
+        const sessions = await this.sessionModel
+            .find(filter)
+            .populate('blocks')
+            .populate('user')
+            .exec();
         return { sessions, total: sessions.length };
     }
 
     async getSessionsByUser(userId: string): Promise<{ sessions: Session[]; total: number }> {
-        const sessions = await this.sessionModel.find({ user: userId }).populate('blocks').exec();
+        const sessions = await this.sessionModel
+            .find({ user: userId })
+            .populate('blocks')
+            .populate('user')
+            .exec();
         return { sessions, total: sessions.length };
     }
 
