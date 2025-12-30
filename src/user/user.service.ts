@@ -111,8 +111,12 @@ export class UserService {
         return { message: 'Password has been reset successfully' };
     }
 
-    async getAllUsers() {
+    async getAllUsers(role?: string) {
+        const matchStage = role ? { role } : {};
         const result = await this.userModel.aggregate([
+            {
+                $match: matchStage
+            },
             {
                 $lookup: {
                     from: 'userprofiles',

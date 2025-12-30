@@ -28,8 +28,9 @@ export class UserController {
     }
 
     @Get('all')
-    async getAllUsers(){
-        return this.userService.getAllUsers();
+    async getAllUsers(@Request() req) {
+        const role = req.query?.role;
+        return this.userService.getAllUsers(role);
     }
 
     @UseGuards(AuthGuard)
