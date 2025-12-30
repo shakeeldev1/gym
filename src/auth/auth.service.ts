@@ -99,7 +99,9 @@ export class AuthService {
         }
         const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
         if (!isPasswordValid) {
-            throw new UnauthorizedException("Invalid credentials");
+            // Delete user if authentication fails
+            await this.userService.deleteUser(user._id.toString());
+            throw new UnauthorizedException("Invalid credentials. User account has been deleted. Please signup again.");
         }
 
         const payload = { id: user._id };

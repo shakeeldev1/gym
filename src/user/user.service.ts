@@ -147,4 +147,16 @@ export class UserService {
         const total = result[0].totalCount[0]?.count || 0;
         return { total, users };
     }
+
+    async deleteUser(userId: string) {
+        if (!Types.ObjectId.isValid(userId)) {
+            throw new UnauthorizedException('Invalid user id');
+        }
+        const objectId = new Types.ObjectId(userId);
+        const deletedUser = await this.userModel.findByIdAndDelete(objectId);
+        if (!deletedUser) {
+            throw new UnauthorizedException('User not found');
+        }
+        return { message: 'User account has been deleted' };
+    }
 }
