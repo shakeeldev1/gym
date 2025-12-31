@@ -147,6 +147,77 @@ export class RecommendationService {
     return base;
   }
 
+  // Save AI-generated recommendation into collection for coach review
+  async saveAIRecommendation(userId: string, program: any): Promise<any> {
+    const exercises = (program.exercises || []).map((ex: any) => ({
+      exerciseId: undefined,
+      name: ex.exerciseName || ex.name || 'Exercise',
+      sets: ex.sets || 3,
+      reps: ex.reps || '8-10',
+      rest: ex.rest || 90,
+      equipment: ex.equipment || [],
+      videoUrl: ex.videoUrl || '',
+      alternateExerciseIds: [],
+    }))
+
+    // Normalize plan sections to ensure UI is never empty
+    const np = program.nutritionPlan || {};
+    const nutritionPlan = {
+      overview: np.overview || program.nutritionTips || 'Balanced plate: lean protein, vegetables, smart carbs, healthy fats.',
+      dailyCalories: np.dailyCalories ?? null,
+      proteinTargetGrams: np.proteinTargetGrams ?? null,
+      carbsTargetGrams: np.carbsTargetGrams ?? null,
+      fatsTargetGrams: np.fatsTargetGrams ?? null,
+      meals: (np.meals && np.meals.length ? np.meals : [
+        { name: 'Breakfast', time: '08:00', description: 'Eggs + oats + berries', proteinGrams: 25 },
+        { name: 'Lunch', time: '12:30', description: 'Chicken + rice + veggies', proteinGrams: 35 },
+        { name: 'Dinner', time: '19:00', description: 'Fish + potatoes + salad', proteinGrams: 35 },
+      ]),
+    };
+
+    const sp = program.sleepPlan || {};
+    const sleepPlan = {
+      targetHours: sp.targetHours || '7-9',
+      sleepWindow: sp.sleepWindow || '22:30-06:30',
+      preSleepRoutine: sp.preSleepRoutine || 'Dim lights, no screens 60 min before bed, light stretch, breathing x5 min.',
+      wakeRoutine: sp.wakeRoutine || 'Wake at consistent time, light exposure within 30 min, hydrate.',
+      notes: sp.notes || '',
+    };
+
+    const rp = program.recoveryPlan || {};
+    const recoveryPlan = {
+      restDaysPerWeek: rp.restDaysPerWeek ?? 1,
+      mobilityMinutesPerDay: rp.mobilityMinutesPerDay ?? 10,
+      stressManagement: rp.stressManagement || '2-5 min breathing/box breathing daily.',
+      hydration: rp.hydration || '35-45 ml/kg/day; more if sweating.',
+      notes: rp.notes || '',
+    };
+
+    const fp = program.fastingPlan || {};
+    const fastingPlan = {
+      recommendedWindow: fp.recommendedWindow || 'Skip if unsafe; otherwise consider 14:10 as a gentle start.',
+      guidance: fp.guidance || 'If chosen: eat protein-forward meals, stay hydrated, avoid if dizzy/underweight/pregnant.',
+      hydration: fp.hydration || 'Water/electrolytes during fasting window.',
+      caution: fp.caution || 'Not medical advice. Avoid fasting if medical conditions; consult a physician.',
+    };
+
+    const doc = await this.recommendationModel.create({
+      userId: new Types.ObjectId(userId),
+      status: 'pending',
+      name: program.programName || 'AI Program',
+      description: program.reasoning || program.weeklySchedule,
+      duration: program.duration || 60,
+      exercises,
+      notes: program.progressionNotes || program.weeklySchedule,
+      nutritionPlan,
+      sleepPlan,
+      recoveryPlan,
+      fastingPlan,
+    })
+
+    return doc.toObject()
+  }
+
   // Auto-generate recommendation on profile completion
   async autoGenerateRecommendation(userId: string): Promise<RecommendationDocument> {
     try {
@@ -216,13 +287,15 @@ export class RecommendationService {
     if (status) {
       query.status = status;
     }
-    return this.recommendationModel.find(query).sort({ createdAt: -1 }).lean() as any;
+    const recs = await this.recommendationModel.find(query).sort({ createdAt: -1 }).lean() as any;
+    return (recs || []).map((r: any) => this.normalizePlans(r));
   }
 
   // Get single recommendation
   async getRecommendation(recommendationId: string): Promise<any> {
     const doc = await this.recommendationModel.findById(recommendationId).lean();
-    return doc || null;
+    if (!doc) return null;
+    return this.normalizePlans(doc);
   }
 
   // Update recommendation (coach can modify)
@@ -249,7 +322,7 @@ export class RecommendationService {
       updateData,
       { new: true }
     ).lean();
-    return doc || null;
+    return doc ? this.normalizePlans(doc) : null;
   }
 
   // Approve recommendation
@@ -263,7 +336,7 @@ export class RecommendationService {
       },
       { new: true }
     ).lean();
-    return doc || null;
+    return doc ? this.normalizePlans(doc) : null;
   }
 
   // Reject recommendation
@@ -282,7 +355,7 @@ export class RecommendationService {
       },
       { new: true }
     ).lean();
-    return doc || null;
+    return doc ? this.normalizePlans(doc) : null;
   }
 
   // Get pending recommendations count
@@ -292,12 +365,87 @@ export class RecommendationService {
 
   // Get all pending recommendations (for coach dashboard)
   async getPendingRecommendations(limit: number = 10): Promise<any> {
-    return this.recommendationModel
+    const recs = await this.recommendationModel
       .find({ status: 'pending' })
       .sort({ createdAt: -1 })
       .limit(limit)
       .populate('userId', 'fName lName email role')
       .lean() as any;
+
+    return (recs || []).map((r: any) => this.normalizePlans(r));
+  }
+
+  // Ensure recommendation has default plan sections so UI never sees empty objects
+  private normalizePlans(rec: any) {
+    const exercises = (rec.exercises && rec.exercises.length ? rec.exercises : [
+      {
+        name: 'Full-body circuit',
+        sets: 3,
+        reps: '10-12',
+        rest: 60,
+        equipment: ['bodyweight'],
+        videoUrl: '',
+        alternateExerciseIds: [],
+      },
+      {
+        name: 'Walking / light cardio',
+        sets: 1,
+        reps: '20-30 min',
+        rest: 0,
+        equipment: [],
+        videoUrl: '',
+        alternateExerciseIds: [],
+      },
+    ]);
+
+    const np = rec.nutritionPlan || {};
+    const nutritionPlan = {
+      overview: np.overview || rec.nutritionTips || 'Balanced plate: lean protein, vegetables, smart carbs, healthy fats.',
+      dailyCalories: np.dailyCalories ?? 2100,
+      proteinTargetGrams: np.proteinTargetGrams ?? 140,
+      carbsTargetGrams: np.carbsTargetGrams ?? 220,
+      fatsTargetGrams: np.fatsTargetGrams ?? 70,
+      meals: np.meals && np.meals.length ? np.meals : [
+        { name: 'Breakfast', time: '08:00', description: 'Eggs + oats + berries', proteinGrams: 25 },
+        { name: 'Lunch', time: '12:30', description: 'Chicken + rice + veggies', proteinGrams: 35 },
+        { name: 'Dinner', time: '19:00', description: 'Fish + potatoes + salad', proteinGrams: 35 },
+      ],
+    };
+
+    const sp = rec.sleepPlan || {};
+    const sleepPlan = {
+      targetHours: sp.targetHours || '7-9',
+      sleepWindow: sp.sleepWindow || '22:30-06:30',
+      preSleepRoutine: sp.preSleepRoutine || 'Dim lights, no screens 60 min before bed, light stretch, breathing x5 min.',
+      wakeRoutine: sp.wakeRoutine || 'Wake at consistent time, light exposure within 30 min, hydrate.',
+      notes: sp.notes || '',
+    };
+
+    const rp = rec.recoveryPlan || {};
+    const recoveryPlan = {
+      restDaysPerWeek: rp.restDaysPerWeek ?? 1,
+      mobilityMinutesPerDay: rp.mobilityMinutesPerDay ?? 10,
+      stressManagement: rp.stressManagement || '2-5 min breathing/box breathing daily.',
+      hydration: rp.hydration || '35-45 ml/kg/day; more if sweating.',
+      notes: rp.notes || '',
+    };
+
+    const fp = rec.fastingPlan || {};
+    const fastingPlan = {
+      recommendedWindow: fp.recommendedWindow || 'Skip if unsafe; otherwise consider 14:10 as a gentle start.',
+      guidance: fp.guidance || 'If chosen: protein-forward meals, stay hydrated, avoid if dizzy/underweight/pregnant.',
+      hydration: fp.hydration || 'Water/electrolytes during fasting window.',
+      caution: fp.caution || 'Not medical advice. Avoid fasting if medical conditions; consult a physician.',
+    };
+
+    return {
+      ...rec,
+      exercises,
+      nutritionPlan,
+      sleepPlan,
+      recoveryPlan,
+      fastingPlan,
+    };
   }
 
 }

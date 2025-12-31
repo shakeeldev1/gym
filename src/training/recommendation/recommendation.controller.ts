@@ -86,12 +86,20 @@ export class RecommendationController {
     @Body() body: { userDescription: string; programDuration?: number; specificGoals?: string[] }
   ) {
     const userId = req.user.id;
-    return this.aiRecommendationService.generateAIRecommendation({
+    const program = await this.aiRecommendationService.generateAIRecommendation({
       userId,
       userDescription: body.userDescription,
       programDuration: body.programDuration,
       specificGoals: body.specificGoals,
     });
+
+    // Log AI response for debugging empties
+    console.log('[AI Program]', JSON.stringify(program, null, 2));
+
+    // Persist program as pending recommendation for coach review
+    await this.recommendationService.saveAIRecommendation(userId, program);
+
+    return program;
   }
 
   // AI-powered endpoint with streaming response
