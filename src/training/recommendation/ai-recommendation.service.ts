@@ -41,6 +41,12 @@ export interface AIGeneratedProgram {
 export class AIRecommendationService {
   private genAI: any;
   private model: any;
+  private readonly modelCandidates = [
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-flash-001',
+    'gemini-1.0-pro-latest',
+    'gemini-pro',
+  ];
 
   constructor(
     @InjectModel(Exercise.name) private exerciseModel: Model<Exercise>,
@@ -59,8 +65,7 @@ export class AIRecommendationService {
     }
     
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use v1beta-supported model variant; latest alias stays compatible.
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    this.model = this.getFirstAvailableModel();
   }
 
   async generateAIRecommendation(
@@ -85,8 +90,8 @@ export class AIRecommendationService {
         exerciseNames,
       );
 
-      // Call Gemini API
-      const result = await this.model.generateContent(prompt);
+      // Call Gemini API (with model fallback if 404)
+      const result = await this.safeGenerateContent(prompt);
       const responseText = result.response.text();
 
       // Parse the response
@@ -99,6 +104,35 @@ export class AIRecommendationService {
         `Failed to generate AI recommendation: ${error.message}`,
       );
     }
+  }
+
+  // Try model list until one succeeds (handles 404 model-not-found issues)
+  private getFirstAvailableModel() {
+    let lastError: any = null;
+    for (const name of this.modelCandidates) {
+      try {
+        return this.genAI.getGenerativeModel({ model: name });
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error('No Gemini model could be initialized');
+  }
+
+  private async safeGenerateContent(prompt: string) {
+    for (const name of this.modelCandidates) {
+      const model = this.genAI.getGenerativeModel({ model: name });
+      try {
+        return await model.generateContent(prompt);
+      } catch (err: any) {
+        const message = err?.message || '';
+        if (message.includes('404') || message.includes('not found')) {
+          continue; // try next model
+        }
+        throw err;
+      }
+    }
+    throw new Error('All Gemini models failed (404). Please verify API access and enabled models.');
   }
 
   private buildAIPrompt(
