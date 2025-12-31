@@ -11,20 +11,24 @@ import { WorkoutBlock, WorkoutBlockSchema } from './workout/schemas/workout-bloc
 import { Session, SessionSchema } from './session/schemas/session.schema';
 import { PerformanceModule } from './performance/performance.module';
 import { Performance, PerformanceSchema } from './performance/schemas/performance.schema';
+import { RecommendationModule } from './recommendation/recommendation.module';
+import { Recommendation, RecommendationSchema } from './recommendation/recommendation.schema';
+import { ExerciseSeedService } from './seed/exercise-seed.service';
 
 @Module({
-    imports: [ExerciseModule, ProgramModule, WorkoutModule, SessionModule,
+    imports: [ExerciseModule, ProgramModule, WorkoutModule, SessionModule, RecommendationModule,
         MongooseModule.forFeature([
             { name: Exercise.name, schema: ExerciseSchema },
             { name: Program.name, schema: ProgramSchema },
             { name: WorkoutSet.name, schema: WorkoutSetSchema },
             { name: WorkoutBlock.name, schema: WorkoutBlockSchema },
             { name: Session.name, schema: SessionSchema },
-            { name: Performance.name, schema: PerformanceSchema }
+            { name: Performance.name, schema: PerformanceSchema },
+            { name: Recommendation.name, schema: RecommendationSchema }
         ]),
         PerformanceModule
     ],
     controllers: [],
-    providers: [],
+    providers: [ExerciseSeedService],
 })
 export class TrainingModule { }

@@ -8,10 +8,12 @@ import { UserProfile, UserProfileSchema } from './schemas/userProfile.schema';
 import { UserController } from './user.controller';
 import { UserProfileController } from './user-profile.controller';
 import { AuthModule } from 'src/auth/auth.module';
+import { RecommendationModule } from '../training/recommendation/recommendation.module';
 
 @Module({
   imports: [
     forwardRef(() => AuthModule),
+    forwardRef(() => RecommendationModule),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: UserProfile.name, schema: UserProfileSchema },

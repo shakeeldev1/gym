@@ -5,6 +5,7 @@ import { UserProfile, UserProfileDocument } from './schemas/userProfile.schema';
 import { CreateUserProfileDto } from './dto/create-user-profile.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { User } from './schemas/user.schema';
+import { RecommendationService } from '../training/recommendation/recommendation.service';
 
 @Injectable()
 export class UserProfileService {
@@ -14,6 +15,8 @@ export class UserProfileService {
 
         @InjectModel(User.name)
         private readonly userModel: Model<User>,
+
+        private readonly recommendationService: RecommendationService,
     ) { }
 
     async createProfile(dto: CreateUserProfileDto): Promise<UserProfile> {
@@ -50,8 +53,15 @@ export class UserProfileService {
             workoutStyle,
             goal,
             profilePicture,
-            notes
+            notes,
+            availableEquipment,
+            injuries,
+            experienceLevel,
+            preferredDaysPerWeek,
+            sessionLengthMinutes,
         } = body;
+
+        // Update user info
         await this.userModel.findByIdAndUpdate(
             userId,
             {
@@ -63,7 +73,8 @@ export class UserProfileService {
             { new: true }
         );
 
-        await this.profileModel.findOneAndUpdate(
+        // Update profile
+        const updatedProfile = await this.profileModel.findOneAndUpdate(
             { userId },
             {
                 ...(gender && { gender }),
@@ -74,13 +85,31 @@ export class UserProfileService {
                 ...(goal && { goal }),
                 ...(profilePicture && { profilePicture }),
                 ...(notes && { notes }),
+                ...(availableEquipment && { availableEquipment }),
+                ...(injuries && { injuries }),
+                ...(experienceLevel && { experienceLevel }),
+                ...(preferredDaysPerWeek && { preferredDaysPerWeek }),
+                ...(sessionLengthMinutes && { sessionLengthMinutes }),
             },
             { new: true, upsert: true, runValidators: true }
         );
 
+        // Auto-generate recommendations if profile has required fields
+        if (experienceLevel && availableEquipment && availableEquipment.length > 0) {
+            try {
+                await this.recommendationService.autoGenerateRecommendation(userId);
+            } catch (error) {
+                console.error('Failed to auto-generate recommendations:', error);
+                // Don't fail the entire profile update if recommendation generation fails
+            }
+        }
+
         return {
             message: "Profile updated successfully",
+            profileUpdated: true,
+            recommendationGenerated: experienceLevel && availableEquipment?.length > 0,
         };
     }
+
 
 }

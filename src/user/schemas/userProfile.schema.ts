@@ -34,6 +34,22 @@ export class UserProfile {
 
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name, required: true })
     userId: mongoose.Types.ObjectId;
+
+    // Recommendation fields
+    @Prop({ type: [String], default: [] })
+    availableEquipment: string[]; // ['bodyweight', 'dumbbell', 'barbell', 'kettlebell', 'band', 'machine']
+
+    @Prop({ type: [String], default: [] })
+    injuries: string[]; // ['knee', 'shoulder', 'back', 'wrist', 'hip', 'ankle']
+
+    @Prop({ type: Number, default: 3 })
+    preferredDaysPerWeek: number;
+
+    @Prop({ type: Number, default: 45 })
+    sessionLengthMinutes: number;
+
+    @Prop({ type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' })
+    experienceLevel: string;
 }
 
 export const UserProfileSchema = SchemaFactory.createForClass(UserProfile);

@@ -25,6 +25,22 @@ export class Exercise {
 
     @Prop({ type: String })
     createdBy?: string;
+
+    // Recommendation fields
+    @Prop({ type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' })
+    difficulty: string;
+
+    @Prop({ type: String, enum: ['squat', 'hinge', 'push', 'pull', 'carry', 'core', 'accessory'] })
+    movementPattern?: string;
+
+    @Prop({ type: [String], default: [] })
+    contraindications: string[]; // ['knee', 'shoulder', 'back', 'wrist']
+
+    @Prop({ type: [String], default: [] })
+    goalTags: string[]; // ['strength', 'hypertrophy', 'endurance', 'conditioning']
+
+    @Prop({ type: [String], default: [] })
+    progressionPath: string[]; // IDs of easier/harder variants
 }
 
 export const ExerciseSchema = SchemaFactory.createForClass(Exercise);

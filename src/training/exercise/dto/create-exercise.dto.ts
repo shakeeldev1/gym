@@ -19,4 +19,24 @@ export class createExerciseDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @IsOptional()
+    @IsString()
+    difficulty?: string;
+
+    @IsOptional()
+    @IsString()
+    movementPattern?: string;
+
+    @IsOptional()
+    @IsArray()
+    contraindications?: string[];
+
+    @IsOptional()
+    @IsArray()
+    goalTags?: string[];
+
+    @IsOptional()
+    @IsArray()
+    progressionPath?: string[];
 }
