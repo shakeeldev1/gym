@@ -35,6 +35,12 @@ export class WorkoutController {
     }
 
     @UseGuards(AuthGuard)
+    @Get("all-blocks")
+    getAllBlocks() {
+        return this.workoutService.getAllBlocks();
+    }
+
+    @UseGuards(AuthGuard)
     @Post(":blockId/add-set")
     addSetToBlock(@Param('blockId') blockId: string, @Body() dto: AddSetDto) {
         return this.workoutService.addSetToBlock(blockId, dto);
@@ -53,8 +59,8 @@ export class WorkoutController {
     }
 
     @UseGuards(AuthGuard)
-    @Get("all-blocks")
-    getAllBlocks() {
-        return this.workoutService.getAllBlocks();
+    @Delete(":blockId/delete-exercise/:exerciseId")
+    deleteExerciseFromBlock(@Param('blockId') blockId: string, @Param('exerciseId') exerciseId: string) {
+        return this.workoutService.deleteExerciseFromBlock(blockId, exerciseId);
     }
 }

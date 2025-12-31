@@ -80,6 +80,16 @@ export class WorkoutService {
         return { message: 'Workout set deleted successfully' };
     }
 
+    async deleteExerciseFromBlock(blockId: string, exerciseId: string): Promise<{ message: string }> {
+        const block = await this.blockModel.findById(blockId).exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+        block.exercises = block.exercises.filter(exId => exId.toString() !== exerciseId);
+        await block.save();
+        return { message: 'Exercise deleted from block successfully' };
+    }
+
     async getAllBlocks(): Promise<WorkoutBlock[]> {
         return this.blockModel.find().populate('exercises sets').exec();
     }
