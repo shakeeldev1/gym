@@ -4,6 +4,14 @@ import { Model, Types } from 'mongoose';
 import { Exercise } from '../exercise/exercise.schema';
 import { UserProfile } from '../../user/schemas/userProfile.schema';
 import { Recommendation, RecommendationDocument } from './recommendation.schema';
+import { Session } from '../session/schemas/session.schema';
+import { NutritionGoal } from '../../nutrition/nutrition-goal/schemas/nutrition-goal.schema';
+import { Fasting } from '../../fasting/schemas/fasting.schema';
+import { Sleep } from '../../mindset-recovery/schemas/sleep.schema';
+import { GoalType } from '../../nutrition/nutrition-goal/enum/goal-type.enum';
+import { WorkoutBlock } from '../workout/schemas/workout-block.schema';
+import { WorkoutSet } from '../workout/schemas/workout-set.schema';
+import { BlockType } from '../workout/enums/blocktype.enum';
 
 interface RecommendationRequest {
   userId: string;
@@ -30,6 +38,12 @@ export class RecommendationService {
     @InjectModel(Exercise.name) private exerciseModel: Model<Exercise>,
     @InjectModel(UserProfile.name) private userProfileModel: Model<UserProfile>,
     @InjectModel(Recommendation.name) private recommendationModel: Model<RecommendationDocument>,
+    @InjectModel(Session.name) private sessionModel: Model<Session>,
+    @InjectModel(NutritionGoal.name) private nutritionGoalModel: Model<NutritionGoal>,
+    @InjectModel(Fasting.name) private fastingModel: Model<Fasting>,
+    @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
+    @InjectModel(WorkoutBlock.name) private workoutBlockModel: Model<WorkoutBlock>,
+    @InjectModel(WorkoutSet.name) private workoutSetModel: Model<WorkoutSet>,
   ) {}
 
   async getRecommendations(dto: RecommendationRequest): Promise<SessionRecommendation> {
@@ -336,7 +350,18 @@ export class RecommendationService {
       },
       { new: true }
     ).lean();
-    return doc ? this.normalizePlans(doc) : null;
+
+    if (!doc) return null;
+
+    const normalized = this.normalizePlans(doc);
+    await Promise.allSettled([
+      this.createSessionFromRecommendation(normalized),
+      this.applyNutritionGoal(normalized),
+      this.applyFastingPlan(normalized),
+      this.applySleepPlan(normalized),
+    ]);
+
+    return normalized;
   }
 
   // Reject recommendation
@@ -446,6 +471,158 @@ export class RecommendationService {
       recoveryPlan,
       fastingPlan,
     };
+  }
+
+  // Create a simple training session record so the user can follow the approved plan
+  private async createSessionFromRecommendation(rec: any) {
+    try {
+      const baseNote = `${rec.name || 'Program'} - ${rec.description || rec.notes || ''}`.trim();
+      const notes = `${baseNote} [rec:${rec._id}]`;
+      const existing = await this.sessionModel.findOne({ user: rec.userId, notes }).lean();
+      if (existing) return;
+
+      // Try to map exercises to WorkoutBlock/WorkoutSet
+      const blockId = await this.createWorkoutBlockFromExercises(rec.exercises);
+
+      await this.sessionModel.create({
+        user: rec.userId,
+        blocks: blockId ? [blockId] : [],
+        completed: false,
+        notes,
+      });
+    } catch (err) {
+      console.error('Failed to create session from recommendation', err);
+    }
+  }
+
+  // Create a WorkoutBlock and sets from exercises; best-effort name matching to Exercise collection
+  private async createWorkoutBlockFromExercises(exercises: any[]): Promise<Types.ObjectId | null> {
+    try {
+      if (!exercises || exercises.length === 0) return null;
+
+      const exerciseIds: Types.ObjectId[] = [];
+      const setIds: Types.ObjectId[] = [];
+
+      for (const ex of exercises) {
+        // Try to find Exercise by name (case-insensitive)
+        const name = this.normalizeName(ex.name || ex.exercise?.name || '');
+        const found = name
+          ? await this.exerciseModel.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } }).select('_id').lean()
+          : null;
+        if (found?._id) {
+          exerciseIds.push(found._id as Types.ObjectId);
+        }
+
+        // Create a WorkoutSet capturing volume
+        const setDoc = await this.workoutSetModel.create({
+          setNumber: setIds.length + 1,
+          reps: this.parseReps(ex.reps),
+          restTime: ex.rest || 0,
+          tempo: undefined,
+          isAMRAP: false,
+        });
+        setIds.push(setDoc._id as Types.ObjectId);
+      }
+
+      const block = await this.workoutBlockModel.create({
+        type: BlockType.NORMAL,
+        exercises: exerciseIds,
+        sets: setIds,
+        restBetweenExercises: 0,
+      });
+
+      return block._id as Types.ObjectId;
+    } catch (err) {
+      console.error('Failed to create workout block from exercises', err);
+      return null;
+    }
+  }
+
+  private parseReps(reps: any): number | undefined {
+    if (reps == null) return undefined;
+    if (typeof reps === 'number') return reps;
+    if (typeof reps === 'string') {
+      const match = reps.match(/\d+/);
+      return match ? Number(match[0]) : undefined;
+    }
+    return undefined;
+  }
+
+  private normalizeName(name: string): string {
+    return (name || '').trim().replace(/\s+/g, ' ');
+  }
+
+  private async applyNutritionGoal(rec: any) {
+    try {
+      // deactivate previous active goals
+      await this.nutritionGoalModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+
+      // attempt to infer goal type from user profile
+      const profile = await this.userProfileModel.findOne({ userId: rec.userId }).lean();
+      const goalType = this.mapGoalType(profile?.goal);
+
+      const goal: any = {
+        user: rec.userId,
+        goalType,
+        caloriesTarget: rec.nutritionPlan?.dailyCalories ?? 2100,
+        proteinTarget: rec.nutritionPlan?.proteinTargetGrams ?? 140,
+        carbsTarget: rec.nutritionPlan?.carbsTargetGrams ?? 220,
+        fatsTarget: rec.nutritionPlan?.fatsTargetGrams ?? 70,
+        startDate: new Date(),
+        isActive: true,
+      };
+
+      await this.nutritionGoalModel.create(goal);
+    } catch (err) {
+      console.error('Failed to apply nutrition goal', err);
+    }
+  }
+
+  private mapGoalType(goal?: string): GoalType {
+    const g = (goal || '').toLowerCase();
+    if (g.includes('lose') || g.includes('cut') || g.includes('weight loss')) return GoalType.CUt;
+    if (g.includes('gain') || g.includes('bulk') || g.includes('muscle')) return GoalType.BULK;
+    if (g.includes('maintain') || g.includes('recomp') || g.includes('stay')) return GoalType.MAINTAIN;
+    return GoalType.CUSTOM;
+  }
+
+  private async applyFastingPlan(rec: any) {
+    try {
+      const windowText = rec.fastingPlan?.recommendedWindow || '';
+      const hoursMatch = windowText.match(/(\d{1,2})[:]?\d{0,2}/);
+      const goalHours = hoursMatch ? Number(hoursMatch[1]) : rec.fastingPlan?.goalHours || undefined;
+
+      await this.fastingModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+
+      await this.fastingModel.create({
+        user: rec.userId,
+        startTime: new Date(),
+        goalDurationHours: goalHours,
+        goalHours,
+        notes: `${rec.fastingPlan?.guidance || ''} ${rec.fastingPlan?.caution || ''}`.trim(),
+        isActive: true,
+      });
+    } catch (err) {
+      console.error('Failed to apply fasting plan', err);
+    }
+  }
+
+  private async applySleepPlan(rec: any) {
+    try {
+      const targetText = rec.sleepPlan?.targetHours || '7-9';
+      const range = targetText.match(/(\d+)[^\d]+(\d+)/);
+      const avgHours = range ? (Number(range[1]) + Number(range[2])) / 2 : Number(targetText) || 8;
+
+      await this.sleepModel.create({
+        user: rec.userId,
+        durationHours: avgHours,
+        quality: undefined,
+        notes: `${rec.sleepPlan?.preSleepRoutine || ''} ${rec.sleepPlan?.wakeRoutine || ''}`.trim(),
+        date: new Date(),
+      });
+    } catch (err) {
+      console.error('Failed to apply sleep plan', err);
+    }
   }
 
 }
