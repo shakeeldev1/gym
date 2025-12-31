@@ -354,12 +354,26 @@ export class RecommendationService {
     if (!doc) return null;
 
     const normalized = this.normalizePlans(doc);
-    await Promise.allSettled([
-      this.createSessionFromRecommendation(normalized),
-      this.applyNutritionGoal(normalized),
-      this.applyFastingPlan(normalized),
-      this.applySleepPlan(normalized),
-    ]);
+    
+    try {
+      // Execute all side-effects and check for failures
+      const results = await Promise.allSettled([
+        this.createSessionFromRecommendation(normalized),
+        this.applyNutritionGoal(normalized),
+        this.applyFastingPlan(normalized),
+        this.applySleepPlan(normalized),
+      ]);
+
+      // Log any failures but don't rollback - allow partial success
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const labels = ['Session', 'Nutrition', 'Fasting', 'Sleep'];
+          console.error(`Failed to apply ${labels[index]} plan:`, result.reason);
+        }
+      });
+    } catch (err) {
+      console.error('Approval side-effects error:', err);
+    }
 
     return normalized;
   }
@@ -479,19 +493,26 @@ export class RecommendationService {
       const baseNote = `${rec.name || 'Program'} - ${rec.description || rec.notes || ''}`.trim();
       const notes = `${baseNote} [rec:${rec._id}]`;
       const existing = await this.sessionModel.findOne({ user: rec.userId, notes }).lean();
-      if (existing) return;
+      if (existing) {
+        console.log(`Session already exists for recommendation ${rec._id}, skipping`);
+        return;
+      }
 
       // Try to map exercises to WorkoutBlock/WorkoutSet
+      console.log(`Creating workout block for ${rec.exercises?.length || 0} exercises...`);
       const blockId = await this.createWorkoutBlockFromExercises(rec.exercises);
 
-      await this.sessionModel.create({
+      const session = await this.sessionModel.create({
         user: rec.userId,
         blocks: blockId ? [blockId] : [],
         completed: false,
         notes,
       });
+      
+      console.log(`✓ Created session ${session._id} with ${blockId ? 1 : 0} workout block(s)`);
     } catch (err) {
       console.error('Failed to create session from recommendation', err);
+      throw err;
     }
   }
 
@@ -555,7 +576,10 @@ export class RecommendationService {
   private async applyNutritionGoal(rec: any) {
     try {
       // deactivate previous active goals
-      await this.nutritionGoalModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      const deactivated = await this.nutritionGoalModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      if (deactivated.modifiedCount > 0) {
+        console.log(`Deactivated ${deactivated.modifiedCount} previous nutrition goal(s)`);
+      }
 
       // attempt to infer goal type from user profile
       const profile = await this.userProfileModel.findOne({ userId: rec.userId }).lean();
@@ -572,9 +596,11 @@ export class RecommendationService {
         isActive: true,
       };
 
-      await this.nutritionGoalModel.create(goal);
+      const created = await this.nutritionGoalModel.create(goal);
+      console.log(`✓ Created nutrition goal (${goalType}): ${goal.caloriesTarget} cal, ${goal.proteinTarget}p/${goal.carbsTarget}c/${goal.fatsTarget}f`);
     } catch (err) {
       console.error('Failed to apply nutrition goal', err);
+      throw err;
     }
   }
 
@@ -592,9 +618,12 @@ export class RecommendationService {
       const hoursMatch = windowText.match(/(\d{1,2})[:]?\d{0,2}/);
       const goalHours = hoursMatch ? Number(hoursMatch[1]) : rec.fastingPlan?.goalHours || undefined;
 
-      await this.fastingModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      const deactivated = await this.fastingModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      if (deactivated.modifiedCount > 0) {
+        console.log(`Deactivated ${deactivated.modifiedCount} previous fasting plan(s)`);
+      }
 
-      await this.fastingModel.create({
+      const created = await this.fastingModel.create({
         user: rec.userId,
         startTime: new Date(),
         goalDurationHours: goalHours,
@@ -602,8 +631,11 @@ export class RecommendationService {
         notes: `${rec.fastingPlan?.guidance || ''} ${rec.fastingPlan?.caution || ''}`.trim(),
         isActive: true,
       });
+      
+      console.log(`✓ Created fasting plan: ${goalHours ? goalHours + 'h window' : 'no specific window'}`);
     } catch (err) {
       console.error('Failed to apply fasting plan', err);
+      throw err;
     }
   }
 
@@ -613,15 +645,18 @@ export class RecommendationService {
       const range = targetText.match(/(\d+)[^\d]+(\d+)/);
       const avgHours = range ? (Number(range[1]) + Number(range[2])) / 2 : Number(targetText) || 8;
 
-      await this.sleepModel.create({
+      const created = await this.sleepModel.create({
         user: rec.userId,
         durationHours: avgHours,
         quality: undefined,
         notes: `${rec.sleepPlan?.preSleepRoutine || ''} ${rec.sleepPlan?.wakeRoutine || ''}`.trim(),
         date: new Date(),
       });
+      
+      console.log(`✓ Created sleep target: ${avgHours}h (from "${targetText}")`);
     } catch (err) {
       console.error('Failed to apply sleep plan', err);
+      throw err;
     }
   }
 
