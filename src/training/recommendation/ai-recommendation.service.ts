@@ -59,8 +59,8 @@ export class AIRecommendationService {
     }
     
     this.genAI = new GoogleGenerativeAI(apiKey);
-    // Use current GA-supported Gemini model; gemini-pro is deprecated on v1beta.
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Use v1beta-supported model variant; latest alias stays compatible.
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
   }
 
   async generateAIRecommendation(
