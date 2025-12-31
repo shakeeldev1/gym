@@ -26,7 +26,18 @@ export class UserProfileService {
             throw new BadRequestException('Profile already exists');
         }
         const profile = new this.profileModel(dto);
-        return profile.save();
+        const saved = await profile.save();
+
+        // Auto-generate recommendation on first profile create when we have key fields
+        if (dto.experienceLevel && dto.availableEquipment && dto.availableEquipment.length > 0) {
+            try {
+                await this.recommendationService.autoGenerateRecommendation(dto.userId as any);
+            } catch (error) {
+                console.error('Failed to auto-generate recommendations on create:', error);
+            }
+        }
+
+        return saved;
     }
 
     async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfile> {
