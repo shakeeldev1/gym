@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, Req, Param } from '@nestjs/common'
 import { AnalyticsService } from "./analytics.service"
 import { AuthGuard } from '../auth/auth.guard'
 
@@ -31,5 +31,11 @@ export class AnalyticsController {
     const userId = req.user.sub
     const limitNum = limit ? parseInt(limit, 10) : 5
     return this.analyticsService.getUserActivity(userId, limitNum)
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('athlete/:id')
+  async getAthleteStats(@Param('id') athleteId: string) {
+    return this.analyticsService.getAthleteStats(athleteId)
   }
 }

@@ -154,4 +154,59 @@ export class AnalyticsService {
       activities: activities.slice(0, limit)
     }
   }
+
+  async getAthleteStats(userId: string) {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const [
+      totalSessions,
+      completedSessions,
+      recentSessions,
+      mealsLogged,
+      fastingTotal,
+      meditationTotal,
+      sleepDocs,
+      habitsTotal,
+    ] = await Promise.all([
+      this.sessionModel.countDocuments({ user: userId }),
+      this.sessionModel.countDocuments({ user: userId, $or: [{ status: 'completed' }, { completed: true }] } as any),
+      this.sessionModel
+        .find({ user: userId, createdAt: { $gte: weekStart } } as any)
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select(['notes', 'status', 'date', 'createdAt'])
+        .lean(),
+      this.mealModel.countDocuments({ user: userId }),
+      this.fastingModel.countDocuments({ user: userId }),
+      this.meditationModel.countDocuments({ user: userId }),
+      this.sleepModel.find({ user: userId, date: { $gte: monthStart } } as any).select(['durationHours', 'date']).lean(),
+      this.habitModel.countDocuments({ user: userId }),
+    ])
+
+    const totalSleepHours = sleepDocs.reduce((sum, doc: any) => sum + (doc.durationHours || 0), 0)
+    const avgSleepHours = sleepDocs.length ? parseFloat((totalSleepHours / sleepDocs.length).toFixed(1)) : 0
+    const completionRate = totalSessions ? Math.round((completedSessions / totalSessions) * 100) : 0
+
+    const recent = recentSessions.map((s: any) => ({
+      note: s.notes || 'Training Session',
+      status: s.status || (s.completed ? 'completed' : 'scheduled'),
+      date: s.date || s.createdAt,
+    }))
+
+    return {
+      sessions: {
+        total: totalSessions,
+        completed: completedSessions,
+        completionRate,
+        recent,
+      },
+      meals: { total: mealsLogged },
+      fasting: { total: fastingTotal },
+      meditation: { total: meditationTotal },
+      sleep: { avgHours: avgSleepHours },
+      habits: { total: habitsTotal },
+    }
+  }
 }
