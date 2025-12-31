@@ -35,6 +35,42 @@ export interface AIGeneratedProgram {
   }>;
   progressionNotes: string;
   nutritionTips?: string;
+  nutritionPlan?: {
+    overview?: string;
+    dailyCalories?: number;
+    proteinTargetGrams?: number;
+    carbsTargetGrams?: number;
+    fatsTargetGrams?: number;
+    meals?: Array<{
+      name: string;
+      time?: string;
+      description?: string;
+      proteinGrams?: number;
+      carbsGrams?: number;
+      fatsGrams?: number;
+      notes?: string;
+    }>;
+  };
+  sleepPlan?: {
+    targetHours: string;
+    sleepWindow?: string;
+    preSleepRoutine?: string;
+    wakeRoutine?: string;
+    notes?: string;
+  };
+  recoveryPlan?: {
+    restDaysPerWeek?: number;
+    mobilityMinutesPerDay?: number;
+    stressManagement?: string;
+    hydration?: string;
+    notes?: string;
+  };
+  fastingPlan?: {
+    recommendedWindow?: string;
+    guidance?: string;
+    hydration?: string;
+    caution?: string;
+  };
 }
 
 @Injectable()
@@ -147,7 +183,7 @@ export class AIRecommendationService {
       advanced: 'advanced with 1+ years experience',
     };
 
-    const prompt = `You are a professional fitness coach creating a personalized workout program.
+    const prompt = `You are a professional fitness coach creating a complete wellness program (training + nutrition guidance + sleep/recovery + fasting suggestion when appropriate).
 
 USER PROFILE:
 - Experience Level: ${experienceMap[profile.experienceLevel] || 'beginner'}
@@ -162,12 +198,15 @@ AVAILABLE EXERCISES TO RECOMMEND:
 ${availableExercises}
 
 TASK:
-Create a detailed ${duration}-week personalized workout program that:
-1. Matches their experience level and equipment
-2. Avoids exercises that conflict with their injuries
+Create a detailed ${duration}-week personalized program that:
+1. Matches their experience level and available equipment
+2. Avoids exercises that conflict with injuries/constraints
 3. Addresses their specific request and goals
 4. Is realistic and sustainable
 5. Includes progression strategy
+6. Provides concise nutrition guidance (not medical advice)
+7. Suggests a simple fasting window ONLY if appropriate and safe; include cautions
+8. Includes sleep and recovery guidance
 
 Please respond in JSON format with this structure:
 {
@@ -176,18 +215,46 @@ Please respond in JSON format with this structure:
   "reasoning": "Why this program works for them",
   "weeklySchedule": "Description of weekly structure (e.g., Upper/Lower split)",
   "exercises": [
-    {
-      "day": "Monday",
-      "exerciseName": "Exercise Name",
-      "sets": 3,
-      "reps": "8-10",
-      "rest": 90,
-      "notes": "Form tips or modifications"
-    }
+    { "day": "Monday", "exerciseName": "Exercise Name", "sets": 3, "reps": "8-10", "rest": 90, "notes": "Form tips or modifications" }
   ],
   "progressionNotes": "How to progress over the weeks",
-  "nutritionTips": "Brief nutrition recommendations"
+  "nutritionTips": "Brief nutrition recommendations",
+  "nutritionPlan": {
+    "overview": "Concise nutrition strategy",
+    "dailyCalories": 0,
+    "proteinTargetGrams": 0,
+    "carbsTargetGrams": 0,
+    "fatsTargetGrams": 0,
+    "meals": [
+      { "name": "Breakfast", "time": "8:00", "description": "Example meal", "proteinGrams": 0, "carbsGrams": 0, "fatsGrams": 0, "notes": "" }
+    ]
+  },
+  "sleepPlan": {
+    "targetHours": "7-9",
+    "sleepWindow": "22:30-06:30",
+    "preSleepRoutine": "Simple routine",
+    "wakeRoutine": "Morning light exposure",
+    "notes": "" 
+  },
+  "recoveryPlan": {
+    "restDaysPerWeek": 1,
+    "mobilityMinutesPerDay": 10,
+    "stressManagement": "Breathing/meditation guidance",
+    "hydration": "Water targets",
+    "notes": ""
+  },
+  "fastingPlan": {
+    "recommendedWindow": "e.g., 14:10 if suitable",
+    "guidance": "How to execute safely",
+    "hydration": "Hydration reminders",
+    "caution": "Who should avoid or consult a doctor"
+  }
 }
+
+Rules:
+- Keep meals simple and general; do NOT prescribe for medical conditions.
+- If user has injuries, avoid contraindicated exercises.
+- If fasting seems unsafe (e.g., underweight, pregnancy, medical conditions if hinted), set fastingPlan to a cautious note instead of a window.
 
 Create a comprehensive, personalized program based on the user's profile and request.`;
 
@@ -222,6 +289,12 @@ Create a comprehensive, personalized program based on the user's profile and req
         rest: ex.rest || 90,
         notes: ex.notes || '',
       }));
+
+      // Normalize optional plans
+      program.nutritionPlan = program.nutritionPlan || { meals: [] };
+      program.sleepPlan = program.sleepPlan || { targetHours: '7-9' };
+      program.recoveryPlan = program.recoveryPlan || {};
+      program.fastingPlan = program.fastingPlan || {};
 
       return program;
     } catch (error) {

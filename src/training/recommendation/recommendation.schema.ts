@@ -40,6 +40,50 @@ export class Recommendation {
   @Prop()
   notes?: string;
 
+  @Prop({ type: Object })
+  nutritionPlan?: {
+    overview?: string;
+    dailyCalories?: number;
+    proteinTargetGrams?: number;
+    carbsTargetGrams?: number;
+    fatsTargetGrams?: number;
+    meals?: Array<{
+      name: string;
+      time?: string;
+      description?: string;
+      proteinGrams?: number;
+      carbsGrams?: number;
+      fatsGrams?: number;
+      notes?: string;
+    }>;
+  };
+
+  @Prop({ type: Object })
+  sleepPlan?: {
+    targetHours?: string;
+    sleepWindow?: string;
+    preSleepRoutine?: string;
+    wakeRoutine?: string;
+    notes?: string;
+  };
+
+  @Prop({ type: Object })
+  recoveryPlan?: {
+    restDaysPerWeek?: number;
+    mobilityMinutesPerDay?: number;
+    stressManagement?: string;
+    hydration?: string;
+    notes?: string;
+  };
+
+  @Prop({ type: Object })
+  fastingPlan?: {
+    recommendedWindow?: string;
+    guidance?: string;
+    hydration?: string;
+    caution?: string;
+  };
+
   @Prop()
   coachNotes?: string;
 

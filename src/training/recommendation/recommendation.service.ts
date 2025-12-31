@@ -232,6 +232,10 @@ export class RecommendationService {
       exercises?: any[];
       coachNotes?: string;
       name?: string;
+      nutritionPlan?: any;
+      sleepPlan?: any;
+      recoveryPlan?: any;
+      fastingPlan?: any;
     },
     coachId?: string
   ): Promise<any> {
@@ -292,6 +296,7 @@ export class RecommendationService {
       .find({ status: 'pending' })
       .sort({ createdAt: -1 })
       .limit(limit)
+      .populate('userId', 'fName lName email role')
       .lean() as any;
   }
 
