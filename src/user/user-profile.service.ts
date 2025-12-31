@@ -29,7 +29,9 @@ export class UserProfileService {
         const saved = await profile.save();
 
         // Auto-generate recommendation on first profile create when we have key fields
-        if (dto.experienceLevel && dto.availableEquipment && dto.availableEquipment.length > 0) {
+        const exp = (dto as any).experienceLevel;
+        const equip = (dto as any).availableEquipment;
+        if (exp && equip && Array.isArray(equip) && equip.length > 0) {
             try {
                 await this.recommendationService.autoGenerateRecommendation(dto.userId as any);
             } catch (error) {
