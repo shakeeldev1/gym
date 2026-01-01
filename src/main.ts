@@ -12,6 +12,7 @@ async function bootstrap() {
       'http://localhost:3000', // Alternative dev port
       'http://localhost:5174', // Vite preview
       'https://health-thrive.site', // Production
+      'https://thrive2-0.vercel.app', // Production
       'https://www.health-thrive.site', // Production with www
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
