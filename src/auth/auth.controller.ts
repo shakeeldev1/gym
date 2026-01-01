@@ -40,7 +40,11 @@ export class AuthController {
     @Get('profile')
     async getProfile(@Request() req) {
         const userId = req.user.id;
-        return await this.userService.findUserById(userId);
+        const result = await this.userService.findUserById(userId);
+        return {
+            user: result.user,
+            profile: result.profile || null,
+        };
     }
 
     @Post('google-login')
