@@ -12,6 +12,7 @@ import { GoalType } from '../../nutrition/nutrition-goal/enum/goal-type.enum';
 import { WorkoutBlock } from '../workout/schemas/workout-block.schema';
 import { WorkoutSet } from '../workout/schemas/workout-set.schema';
 import { BlockType } from '../workout/enums/blocktype.enum';
+import { AIRecommendationService } from './ai-recommendation.service';
 
 interface RecommendationRequest {
   userId: string;
@@ -44,6 +45,7 @@ export class RecommendationService {
     @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
     @InjectModel(WorkoutBlock.name) private workoutBlockModel: Model<WorkoutBlock>,
     @InjectModel(WorkoutSet.name) private workoutSetModel: Model<WorkoutSet>,
+    private aiRecommendationService: AIRecommendationService,
   ) {}
 
   async getRecommendations(dto: RecommendationRequest): Promise<SessionRecommendation> {
@@ -95,7 +97,7 @@ export class RecommendationService {
         .slice(0, 3);
 
       // Calculate volume based on experience
-      const volume = this.calculateVolume(profile.experienceLevel || 'beginner', profile.goal);
+      const volume = this.calculateVolume(profile.experienceLevel || 'beginner', (profile.goal as string) || 'muscle-gain');
 
       session.exercises.push({
         exercise: selected as Exercise,
@@ -244,55 +246,209 @@ export class RecommendationService {
         throw new Error('User profile not found');
       }
 
-      // Generate session
-      const session = await this.getRecommendations({ userId });
+      // Use AI service to generate comprehensive personalized recommendation
+      // Build user description from their comprehensive profile
+      const userDescription = this.buildUserDescriptionFromProfile(profile);
+      
+      const aiProgram = await this.aiRecommendationService.generateAIRecommendation({
+        userId,
+        userDescription,
+        programDuration: 8, // Default 8-week program
+        specificGoals: profile.mainGoals,
+      });
 
-      // Get detailed exercises
-      const exercisesWithDetails = await Promise.all(
-        session.exercises.map(async (ex) => {
-          const fullEx = await this.exerciseModel.findById((ex.exercise as any)._id).lean();
-          if (!fullEx) {
-            throw new Error(`Exercise not found for ID: ${(ex.exercise as any)._id}`);
-          }
-          const alternates = await this.exerciseModel.find({
-            _id: { $in: ex.alternates.map((a: any) => a._id) }
-          }).lean();
-          
+      console.log('Generated personalized AI program for user:', userId);
+      
+      // Persist AI-generated program as pending recommendation for coach review
+      const savedRec = await this.saveAIRecommendation(userId, aiProgram);
+
+      return savedRec;
+    } catch (error: any) {
+      const message = error?.message || 'Unknown AI error';
+      const isModelUnavailable = message.includes('All Gemini models failed') || error?.code === 'AI_MODEL_UNAVAILABLE';
+
+      if (isModelUnavailable) {
+        console.warn('AI model unavailable; falling back to basic recommendation.');
+      } else {
+        console.error('Failed to auto-generate AI recommendation:', error);
+      }
+
+      // Fallback to basic recommendation if AI fails (e.g., missing/invalid Gemini models)
+      return await this.generateBasicRecommendationSafe(userId);
+    }
+  }
+
+  // Generate fallback basic recommendation if AI fails
+  private async generateBasicRecommendation(userId: string): Promise<RecommendationDocument> {
+    const profile = await this.userProfileModel.findOne({ userId }).lean();
+    if (!profile) {
+      throw new Error('User profile not found');
+    }
+
+    const session = await this.getRecommendations({ userId });
+
+    const exercisesWithDetails = await Promise.all(
+      session.exercises.map(async (ex) => {
+        const fullEx = await this.exerciseModel.findById((ex.exercise as any)._id).lean();
+        if (!fullEx) {
           return {
-            exerciseId: fullEx._id,
-            name: fullEx.name,
+            exerciseId: undefined,
+            name: 'Exercise',
             sets: ex.sets,
             reps: ex.reps,
             rest: ex.rest,
-            equipment: fullEx.equipment,
-            videoUrl: fullEx.videoUrl,
-            alternateExerciseIds: alternates.map(a => a._id),
+            equipment: [],
+            videoUrl: '',
+            alternateExerciseIds: [],
           };
-        })
-      );
+        }
+        const alternates = await this.exerciseModel.find({
+          _id: { $in: ex.alternates.map((a: any) => a._id) }
+        }).lean();
+        
+        return {
+          exerciseId: fullEx._id,
+          name: fullEx.name,
+          sets: ex.sets,
+          reps: ex.reps,
+          rest: ex.rest,
+          equipment: fullEx.equipment,
+          videoUrl: fullEx.videoUrl,
+          alternateExerciseIds: alternates.map(a => a._id),
+        };
+      })
+    );
 
-      // Create recommendation document
+    const recommendation = await this.recommendationModel.create({
+      userId,
+      status: 'pending',
+      name: session.name,
+      duration: session.duration,
+      exercises: exercisesWithDetails,
+      notes: session.notes,
+      nutritionPlan: {
+        overview: 'Balanced plate: lean protein, vegetables, smart carbs, healthy fats.',
+      },
+      sleepPlan: {
+        targetHours: '7-9',
+        sleepWindow: '22:30-06:30',
+        preSleepRoutine: 'Dim lights, no screens 60 min before bed, light stretch.',
+        wakeRoutine: 'Wake at consistent time, light exposure within 30 min.',
+      },
+      recoveryPlan: {
+        restDaysPerWeek: 1,
+        mobilityMinutesPerDay: 10,
+        stressManagement: 'Daily breathing exercises.',
+        hydration: '35-45 ml/kg/day',
+      },
+      userProfileSnapshot: {
+        experienceLevel: profile.experienceLevel,
+        availableEquipment: profile.availableEquipment,
+        injuries: profile.injuries,
+        preferredDaysPerWeek: profile.preferredDaysPerWeek,
+        sessionLengthMinutes: profile.sessionLengthMinutes,
+      },
+    });
+
+    return recommendation;
+  }
+
+  // Basic recommendation that never throws, used when AI/Gemini is unavailable
+  private async generateBasicRecommendationSafe(userId: string): Promise<RecommendationDocument> {
+    try {
+      return await this.generateBasicRecommendation(userId);
+    } catch (error) {
+      console.error('Basic recommendation failed, returning minimal fallback:', error);
       const recommendation = await this.recommendationModel.create({
         userId,
         status: 'pending',
-        name: session.name,
-        duration: session.duration,
-        exercises: exercisesWithDetails,
-        notes: session.notes,
-        userProfileSnapshot: {
-          experienceLevel: profile.experienceLevel,
-          availableEquipment: profile.availableEquipment,
-          injuries: profile.injuries,
-          preferredDaysPerWeek: profile.preferredDaysPerWeek,
-          sessionLengthMinutes: profile.sessionLengthMinutes,
+        name: 'Starter Program',
+        duration: 45,
+        exercises: [
+          {
+            name: 'Bodyweight Squat',
+            sets: 3,
+            reps: '10-12',
+            rest: 60,
+            equipment: [],
+            videoUrl: '',
+            alternateExerciseIds: [],
+          },
+          {
+            name: 'Push-Up (Incline if needed)',
+            sets: 3,
+            reps: '8-10',
+            rest: 60,
+            equipment: [],
+            videoUrl: '',
+            alternateExerciseIds: [],
+          },
+          {
+            name: 'Glute Bridge',
+            sets: 3,
+            reps: '12-15',
+            rest: 45,
+            equipment: [],
+            videoUrl: '',
+            alternateExerciseIds: [],
+          },
+          {
+            name: 'Plank',
+            sets: 3,
+            reps: '30-45s',
+            rest: 45,
+            equipment: [],
+            videoUrl: '',
+            alternateExerciseIds: [],
+          },
+        ],
+        notes: 'Fallback plan when AI is unavailable. Focus on form and consistency.',
+        nutritionPlan: {
+          overview: 'Balanced plate: lean protein, vegetables, smart carbs, healthy fats.',
+        },
+        sleepPlan: {
+          targetHours: '7-9',
+          sleepWindow: '22:30-06:30',
+          preSleepRoutine: 'Dim lights, no screens 60 min before bed, light stretch.',
+          wakeRoutine: 'Wake at consistent time, light exposure within 30 min.',
+        },
+        recoveryPlan: {
+          restDaysPerWeek: 1,
+          mobilityMinutesPerDay: 10,
+          stressManagement: 'Daily breathing exercises.',
+          hydration: '35-45 ml/kg/day',
         },
       });
-
       return recommendation;
-    } catch (error) {
-      console.error('Failed to auto-generate recommendation:', error);
-      throw error;
     }
+  }
+
+  // Build detailed user description from comprehensive profile
+  private buildUserDescriptionFromProfile(profile: any): string {
+    return `
+User Profile Summary:
+- Name: ${profile.fullName || 'User'}
+- Age: ${profile.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : 'Not specified'}
+- Gender: ${profile.gender || 'Not specified'}
+- Main Goals: ${profile.mainGoals?.join(', ') || 'Not specified'}
+- Current Exercise Level: ${profile.currentExerciseLevel || profile.experienceLevel || 'Beginner'}
+- Available Equipment: ${profile.availableEquipment?.join(', ') || profile.availableEquipment?.join(', ') || 'Bodyweight only'}
+- Exercise Restrictions: ${profile.exerciseRestrictions?.join(', ') || profile.injuries?.join(', ') || 'None'}
+- Training Days Per Week: ${profile.trainingDaysPerWeek || 3}
+- Session Length: ${profile.sessionLengthMinutes || 45} minutes
+- Preferred Training Location: ${profile.preferredTrainingLocation || 'Not specified'}
+- Eating Style: ${profile.eatingStyle || 'Not specified'}
+- Medical Conditions: ${profile.medicalConditions?.join(', ') || 'None'}
+- Pregnancy Status: ${profile.pregnancyStatus || 'Not applicable'}
+- Sleep Hours: ${profile.sleepHoursPerNight || 'Not specified'} per night
+- Stress Sources: ${profile.stressSource?.join(', ') || 'Not specified'}
+- Stress Management Techniques: ${profile.stressManagementTechniques?.join(', ') || 'Not specified'}
+- Past Barriers to Goals: ${profile.pastBarriersToGoals?.join(', ') || 'Not specified'}
+- Motivation Factors: ${profile.motivationFactors?.join(', ') || 'Not specified'}
+- Support Level Preference: ${profile.supportLevelPreference || 'Moderate'}
+
+Please create a comprehensive 8-week personalized program based on this complete profile.
+    `.trim();
   }
 
   // Get recommendations for user

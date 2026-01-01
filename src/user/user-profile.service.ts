@@ -28,14 +28,16 @@ export class UserProfileService {
         const profile = new this.profileModel(dto);
         const saved = await profile.save();
 
-        // Auto-generate recommendation on first profile create when we have key fields
-        const exp = (dto as any).experienceLevel;
-        const equip = (dto as any).availableEquipment;
-        if (exp && equip && Array.isArray(equip) && equip.length > 0) {
+        // Auto-generate AI-powered recommendation using comprehensive profile data
+        // Trigger if we have sufficient information about goals and exercise preferences
+        if (dto.userId && ((dto.mainGoals && dto.mainGoals.length > 0) || dto.currentExerciseLevel)) {
             try {
+                console.log('Triggering AI recommendation generation with comprehensive profile...');
                 await this.recommendationService.autoGenerateRecommendation(dto.userId as any);
+                console.log('AI recommendation generated successfully');
             } catch (error) {
-                console.error('Failed to auto-generate recommendations on create:', error);
+                console.error('Failed to auto-generate AI recommendations on create:', error);
+                // Don't fail profile creation if recommendation fails
             }
         }
 
@@ -45,6 +47,15 @@ export class UserProfileService {
     async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfile> {
         const profile = await this.profileModel.findOneAndUpdate({ userId }, dto, { new: true });
         if (!profile) throw new NotFoundException('User Profile not found');
+
+        // Regenerate AI recommendations on every profile update so the plan stays in sync
+        try {
+            await this.recommendationService.autoGenerateRecommendation(userId);
+        } catch (error) {
+            console.error('Failed to regenerate AI recommendations on profile update:', error);
+            // Do not block profile update if AI generation fails
+        }
+
         return profile;
     }
 
@@ -111,20 +122,18 @@ export class UserProfileService {
             { new: true, upsert: true, runValidators: true }
         );
 
-        // Auto-generate recommendations if profile has required fields
-        if (experienceLevel && availableEquipment && availableEquipment.length > 0) {
-            try {
-                await this.recommendationService.autoGenerateRecommendation(userId);
-            } catch (error) {
-                console.error('Failed to auto-generate recommendations:', error);
-                // Don't fail the entire profile update if recommendation generation fails
-            }
+        // Always regenerate AI recommendations after any user/admin/coach update
+        try {
+            await this.recommendationService.autoGenerateRecommendation(userId);
+        } catch (error) {
+            console.error('Failed to auto-generate recommendations:', error);
+            // Don't fail the entire profile update if recommendation generation fails
         }
 
         return {
             message: "Profile updated successfully",
             profileUpdated: true,
-            recommendationGenerated: experienceLevel && availableEquipment?.length > 0,
+            recommendationGenerated: true,
         };
     }
 

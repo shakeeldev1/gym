@@ -134,10 +134,21 @@ export class AIRecommendationService {
       const program = this.parseAIResponse(responseText);
 
       return program;
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.message || 'Unknown AI error';
+      const isModelUnavailable = message.includes('All Gemini models failed');
+
+      // Downgrade to warn for model-availability errors; allow caller to fallback
+      if (isModelUnavailable) {
+        console.warn('AI Recommendation unavailable (model not enabled). Using fallback.', message);
+        const err = new Error('AI_MODEL_UNAVAILABLE');
+        (err as any).code = 'AI_MODEL_UNAVAILABLE';
+        throw err;
+      }
+
       console.error('AI Recommendation Error:', error);
       throw new BadRequestException(
-        `Failed to generate AI recommendation: ${error.message}`,
+        `Failed to generate AI recommendation: ${message}`,
       );
     }
   }
@@ -183,80 +194,140 @@ export class AIRecommendationService {
       advanced: 'advanced with 1+ years experience',
     };
 
-    const prompt = `You are a professional fitness coach creating a complete wellness program (training + nutrition guidance + sleep/recovery + fasting suggestion when appropriate).
+    // Build comprehensive user context from new profile fields
+    const userContext = `
+USER COMPREHENSIVE PROFILE:
 
-USER PROFILE:
-- Experience Level: ${experienceMap[profile.experienceLevel] || 'beginner'}
-- Available Equipment: ${profile.availableEquipment?.join(', ') || 'bodyweight only'}
-- Injuries/Constraints: ${profile.injuries?.join(', ') || 'none'}
-- Goals: ${profile.goal || 'general fitness'}
-- Preferred Days Per Week: ${profile.preferredDaysPerWeek || 4}
-- Session Length: ${profile.sessionLengthMinutes || 60} minutes
-- User's Specific Request: ${userDescription}
+PERSONAL DETAILS:
+- Full Name: ${profile.fullName || 'Not provided'}
+- Age: ${profile.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : 'Not specified'}
+- Measurement System: ${profile.measurementSystem || 'metric'}
+- Height: ${profile.height ? `${profile.height}${profile.measurementSystem === 'imperial' ? ' inches' : ' cm'}` : 'Not provided'}
+- Weight: ${profile.weight ? `${profile.weight}${profile.measurementSystem === 'imperial' ? ' lbs' : ' kg'}` : 'Not provided'}
+- Main Goals: ${profile.mainGoals?.join(', ') || 'Not specified'}
+- Emotional Commitment Level: ${profile.emotionalCommitmentLevel || 'Not specified'}
+- Expected Weight Loss Goal: ${profile.expectedWeightLossGoal ? `${profile.expectedWeightLossGoal}${profile.measurementSystem === 'imperial' ? ' lbs' : ' kg'}` : 'Not specified'}
+
+LIFESTYLE & HEALTH:
+- Pregnancy Status: ${profile.pregnancyStatus || 'Not applicable'}
+- Stress Sources: ${profile.stressSource?.join(', ') || 'None specified'}
+- Stress Management: ${profile.stressManagementTechniques?.join(', ') || 'None specified'}
+- Sleep: ${profile.sleepHoursPerNight || 'Not specified'} hours per night
+- Household Size: ${profile.householdSize || 'Not specified'}
+- Additional Info: ${profile.additionalInfo || 'None'}
+
+NUTRITION:
+- Eating Style: ${profile.eatingStyle || 'Not specified'}
+- Typical Day Eating: ${profile.typicalDayOfEating || 'Not described'}
+- Favorite Foods: ${profile.favoriteFood || 'Not specified'}
+- Food Allergies/Intolerances: ${profile.foodAllergiesIntolerances?.join(', ') || 'None'}
+- Current Medications: ${profile.currentMedications || 'None'}
+- Medical Conditions: ${profile.medicalConditions?.join(', ') || 'None'}
+
+EXERCISE & MOVEMENT:
+- Current Exercise Level: ${profile.currentExerciseLevel || profile.experienceLevel || 'Not specified'}
+- Typical Workout Routine: ${profile.typicalWorkoutRoutine || 'Not described'}
+- Enjoyed Exercise Types: ${profile.enjoyedExerciseTypes?.join(', ') || 'Not specified'}
+- Disliked Exercise Types: ${profile.dislikedExerciseTypes?.join(', ') || 'Not specified'}
+- Exercise Restrictions/Pain: ${profile.exerciseRestrictions?.join(', ') || profile.injuries?.join(', ') || 'None'}
+- Training Days Per Week: ${profile.trainingDaysPerWeek || profile.preferredDaysPerWeek || 3}
+- Preferred Training Location: ${profile.preferredTrainingLocation || 'Not specified'}
+- Session Length: ${profile.sessionLengthMinutes || 45} minutes
+- Available Equipment: ${profile.availableEquipment?.join(', ') || 'Bodyweight only'}
+
+SUPPORT & ACCOUNTABILITY:
+- Past Barriers to Goals: ${profile.pastBarriersToGoals?.join(', ') || 'Not specified'}
+- Motivation Factors: ${profile.motivationFactors?.join(', ') || 'Not specified'}
+- Accountability Buddy Preference: ${profile.accountabilityBuddyPreference || 'None'}
+- Support Level Preference: ${profile.supportLevelPreference || 'Moderate'}
+- Additional Notes: ${profile.additionalNotes || 'None'}
+
+USER'S SPECIFIC REQUEST: ${userDescription}
+`;
+
+    const prompt = `You are a professional fitness coach, nutritionist, and wellness expert creating a HIGHLY PERSONALIZED complete wellness program based on comprehensive user onboarding data.
+
+${userContext}
 
 AVAILABLE EXERCISES TO RECOMMEND:
 ${availableExercises}
 
 TASK:
 Create a detailed ${duration}-week personalized program that:
-1. Matches their experience level and available equipment
-2. Avoids exercises that conflict with injuries/constraints
-3. Addresses their specific request and goals
-4. Is realistic and sustainable
-5. Includes progression strategy
-6. Provides concise nutrition guidance (not medical advice)
-7. Suggests a simple fasting window ONLY if appropriate and safe; include cautions
-8. Includes sleep and recovery guidance
+1. DEEPLY considers their comprehensive profile (goals, lifestyle, health conditions, preferences, barriers, motivations)
+2. Matches their current exercise level and enjoyed exercise types
+3. Avoids disliked exercises and any movements that conflict with their restrictions/pain areas
+4. Addresses their specific request, main goals, and emotional commitment level
+5. Takes into account their stress sources and suggests appropriate stress management
+6. Considers their eating style, allergies, and medical conditions in nutrition planning
+7. Addresses their past barriers and leverages their motivation factors
+8. Provides support/accountability aligned with their preferences
+9. Is realistic for their household size, sleep patterns, and lifestyle
+10. Includes progression strategy tailored to their experience
+11. Suggests a simple fasting window ONLY if appropriate given pregnancy status, medical conditions, and goals
+12. Provides comprehensive sleep and recovery guidance based on current sleep hours
+
+CRITICAL SAFETY CONSIDERATIONS:
+- If pregnant or has medical conditions: provide conservative recommendations with medical consultation advice
+- If has exercise restrictions/pain: completely avoid contraindicated movements
+- If has food allergies: exclude all allergens from meal suggestions
+- If takes medications: note potential interactions with fasting/intense exercise
+- If underweight or has eating disorders history: DO NOT recommend calorie restriction or fasting
 
 Please respond in JSON format with this structure:
 {
-  "programName": "Program Title",
+  "programName": "Program Title (personalized to their goals)",
   "duration": ${duration},
-  "reasoning": "Why this program works for them",
-  "weeklySchedule": "Description of weekly structure (e.g., Upper/Lower split)",
+  "reasoning": "Why this SPECIFIC program works for THIS person's unique profile, goals, barriers, and motivations",
+  "weeklySchedule": "Description of weekly structure considering their training days preference and location",
   "exercises": [
-    { "day": "Monday", "exerciseName": "Exercise Name", "sets": 3, "reps": "8-10", "rest": 90, "notes": "Form tips or modifications" }
+    { "day": "Monday", "exerciseName": "Exercise from available list", "sets": 3, "reps": "8-10", "rest": 90, "notes": "Form tips, modifications for their restrictions, or motivation reminders" }
   ],
-  "progressionNotes": "How to progress over the weeks",
-  "nutritionTips": "Brief nutrition recommendations",
+  "progressionNotes": "How to progress over weeks based on their experience and goals",
+  "nutritionTips": "Brief nutrition recommendations aligned with eating style and goals",
   "nutritionPlan": {
-    "overview": "Concise nutrition strategy",
+    "overview": "Nutrition strategy considering eating style, allergies, household size, favorite foods",
     "dailyCalories": 0,
     "proteinTargetGrams": 0,
     "carbsTargetGrams": 0,
     "fatsTargetGrams": 0,
     "meals": [
-      { "name": "Breakfast", "time": "8:00", "description": "Example meal", "proteinGrams": 0, "carbsGrams": 0, "fatsGrams": 0, "notes": "" }
+      { "name": "Breakfast", "time": "8:00", "description": "Meal respecting their eating style and allergies", "proteinGrams": 0, "carbsGrams": 0, "fatsGrams": 0, "notes": "" }
     ]
   },
   "sleepPlan": {
-    "targetHours": "7-9",
-    "sleepWindow": "22:30-06:30",
-    "preSleepRoutine": "Simple routine",
-    "wakeRoutine": "Morning light exposure",
-    "notes": "" 
+    "targetHours": "Based on current sleep hours, gradually improve",
+    "sleepWindow": "Realistic window for their lifestyle",
+    "preSleepRoutine": "Routine incorporating their stress management techniques",
+    "wakeRoutine": "Morning routine aligned with their goals",
+    "notes": "Address their specific sleep challenges" 
   },
   "recoveryPlan": {
     "restDaysPerWeek": 1,
     "mobilityMinutesPerDay": 10,
-    "stressManagement": "Breathing/meditation guidance",
-    "hydration": "Water targets",
-    "notes": ""
+    "stressManagement": "Specific techniques from their preferred stress management methods",
+    "hydration": "Water targets appropriate for their exercise level",
+    "notes": "Recovery aligned with their barriers and lifestyle"
   },
   "fastingPlan": {
-    "recommendedWindow": "e.g., 14:10 if suitable",
-    "guidance": "How to execute safely",
+    "recommendedWindow": "e.g., 14:10 ONLY if safe given pregnancy/medical status",
+    "guidance": "How to execute safely for their profile",
     "hydration": "Hydration reminders",
-    "caution": "Who should avoid or consult a doctor"
+    "caution": "Specific cautions for their medical conditions, pregnancy status, medications"
   }
 }
 
 Rules:
-- Keep meals simple and general; do NOT prescribe for medical conditions.
-- If user has injuries, avoid contraindicated exercises.
-- If fasting seems unsafe (e.g., underweight, pregnancy, medical conditions if hinted), set fastingPlan to a cautious note instead of a window.
+- BE HIGHLY SPECIFIC to this user's comprehensive profile
+- Reference their specific goals, barriers, motivations, and preferences throughout
+- Keep meals aligned with their eating style and exclude ALL allergens
+- If user has medical conditions/pregnancy: provide conservative recommendations + require medical consultation
+- If fasting seems unsafe: set fastingPlan to a cautious note instead of a window
+- Use their preferred training location and enjoyed exercises
+- Address their past barriers with specific strategies
+- Leverage their motivation factors to keep them engaged
 
-Create a comprehensive, personalized program based on the user's profile and request.`;
+Create a comprehensive, DEEPLY PERSONALIZED program that feels custom-made for THIS specific person.`;
 
     return prompt;
   }

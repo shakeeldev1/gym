@@ -22,6 +22,7 @@ import { WorkoutSet } from '../training/workout/schemas/workout-set.schema';
 import { Performance } from '../training/performance/schemas/performance.schema';
 import { Report } from '../reports/schemas/report.schema';
 import { UserIntegration } from '../integrations/schemas/user-integration.schema';
+import { Recommendation } from '../training/recommendation/recommendation.schema';
 
 @Injectable()
 export class UserService {
@@ -42,6 +43,7 @@ export class UserService {
         @InjectModel(Performance.name) private performanceModel: Model<Performance>,
         @InjectModel(Report.name) private reportModel: Model<Report>,
         @InjectModel(UserIntegration.name) private userIntegrationModel: Model<UserIntegration>,
+        @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
         private readonly profileService: UserProfileService,
         private readonly mailService: MailService
     ) { }
@@ -236,6 +238,9 @@ export class UserService {
                 
                 // Delete user integrations
                 this.userIntegrationModel.deleteMany({ userId: objectId }),
+                
+                // Delete recommendations
+                this.recommendationModel.deleteMany({ userId: objectId }),
             ]);
 
             // Also remove user from athletes array in reports

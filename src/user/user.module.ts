@@ -23,6 +23,7 @@ import { WorkoutSet, WorkoutSetSchema } from '../training/workout/schemas/workou
 import { Performance, PerformanceSchema } from '../training/performance/schemas/performance.schema';
 import { Report, ReportSchema } from '../reports/schemas/report.schema';
 import { UserIntegration, UserIntegrationSchema } from '../integrations/schemas/user-integration.schema';
+import { Recommendation, RecommendationSchema } from '../training/recommendation/recommendation.schema';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { UserIntegration, UserIntegrationSchema } from '../integrations/schemas/
       { name: Performance.name, schema: PerformanceSchema },
       { name: Report.name, schema: ReportSchema },
       { name: UserIntegration.name, schema: UserIntegrationSchema },
+      { name: Recommendation.name, schema: RecommendationSchema },
     ]),
   ],
   providers: [UserService, UserProfileService], 

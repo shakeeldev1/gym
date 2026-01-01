@@ -31,6 +31,11 @@ export class AuthController {
         return { access_token: token };
     }
 
+    @Post('logout')
+    async logout() {
+        return { message: 'Logout successful' };
+    }
+
     @UseGuards(AuthGuard)
     @Get('profile')
     async getProfile(@Request() req) {
