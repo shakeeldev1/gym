@@ -8,12 +8,40 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { MailService } from 'src/auth/mail.service';
 import { UserProfileService } from './user-profile.service';
+import { Fasting } from '../fasting/schemas/fasting.schema';
+import { Habit } from '../habits/schemas/habit.schema';
+import { HabitLog } from '../habits/schemas/habit-log.schema';
+import { Meditation } from '../mindset-recovery/schemas/meditation.schema';
+import { Sleep } from '../mindset-recovery/schemas/sleep.schema';
+import { Breathwork } from '../mindset-recovery/schemas/breathwork.schema';
+import { Meal } from '../nutrition/meal/schemas/meal.schema';
+import { NutritionGoal } from '../nutrition/nutrition-goal/schemas/nutrition-goal.schema';
+import { Session } from '../training/session/schemas/session.schema';
+import { WorkoutBlock } from '../training/workout/schemas/workout-block.schema';
+import { WorkoutSet } from '../training/workout/schemas/workout-set.schema';
+import { Performance } from '../training/performance/schemas/performance.schema';
+import { Report } from '../reports/schemas/report.schema';
+import { UserIntegration } from '../integrations/schemas/user-integration.schema';
 
 @Injectable()
 export class UserService {
 
     constructor(
         @InjectModel(User.name) private userModel: Model<User>,
+        @InjectModel(Fasting.name) private fastingModel: Model<Fasting>,
+        @InjectModel(Habit.name) private habitModel: Model<Habit>,
+        @InjectModel(HabitLog.name) private habitLogModel: Model<HabitLog>,
+        @InjectModel(Meditation.name) private meditationModel: Model<Meditation>,
+        @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
+        @InjectModel(Breathwork.name) private breathworkModel: Model<Breathwork>,
+        @InjectModel(Meal.name) private mealModel: Model<Meal>,
+        @InjectModel(NutritionGoal.name) private nutritionGoalModel: Model<NutritionGoal>,
+        @InjectModel(Session.name) private sessionModel: Model<Session>,
+        @InjectModel(WorkoutBlock.name) private workoutBlockModel: Model<WorkoutBlock>,
+        @InjectModel(WorkoutSet.name) private workoutSetModel: Model<WorkoutSet>,
+        @InjectModel(Performance.name) private performanceModel: Model<Performance>,
+        @InjectModel(Report.name) private reportModel: Model<Report>,
+        @InjectModel(UserIntegration.name) private userIntegrationModel: Model<UserIntegration>,
         private readonly profileService: UserProfileService,
         private readonly mailService: MailService
     ) { }
@@ -157,11 +185,73 @@ export class UserService {
             throw new UnauthorizedException('Invalid user id');
         }
         const objectId = new Types.ObjectId(userId);
-        const deletedUser = await this.userModel.findByIdAndDelete(objectId);
-        if (!deletedUser) {
+        
+        // Check if user exists
+        const user = await this.userModel.findById(objectId);
+        if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        return { message: 'User account has been deleted' };
+
+        try {
+            // Delete all user-related data in parallel for better performance
+            await Promise.all([
+                // Delete user profile
+                this.profileService.deleteProfile(objectId),
+                
+                // Delete fasting records
+                this.fastingModel.deleteMany({ user: objectId }),
+                
+                // Delete habit logs
+                this.habitLogModel.deleteMany({ user: objectId }),
+                
+                // Delete meditation records
+                this.meditationModel.deleteMany({ user: objectId }),
+                
+                // Delete sleep records
+                this.sleepModel.deleteMany({ user: objectId }),
+                
+                // Delete breathwork records
+                this.breathworkModel.deleteMany({ user: objectId }),
+                
+                // Delete meal records
+                this.mealModel.deleteMany({ user: objectId }),
+                
+                // Delete nutrition goals
+                this.nutritionGoalModel.deleteMany({ user: objectId }),
+                
+                // Delete training sessions
+                this.sessionModel.deleteMany({ user: objectId }),
+                
+                // Delete workout blocks
+                this.workoutBlockModel.deleteMany({ user: objectId }),
+                
+                // Delete workout sets
+                this.workoutSetModel.deleteMany({ user: objectId }),
+                
+                // Delete performance records
+                this.performanceModel.deleteMany({ user: objectId }),
+                
+                // Delete reports where user is coach
+                this.reportModel.deleteMany({ coach: objectId }),
+                
+                // Delete user integrations
+                this.userIntegrationModel.deleteMany({ userId: objectId }),
+            ]);
+
+            // Also remove user from athletes array in reports
+            await this.reportModel.updateMany(
+                { athletes: objectId },
+                { $pull: { athletes: objectId } }
+            );
+
+            // Finally, delete the user account
+            await this.userModel.findByIdAndDelete(objectId);
+            
+            return { message: 'User account and all related data have been deleted successfully' };
+        } catch (error) {
+            console.error('Error deleting user and related data:', error);
+            throw new UnauthorizedException('Failed to delete user account');
+        }
     }
 
     async updateUserRole(userId: string, role: string) {

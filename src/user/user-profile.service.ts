@@ -53,6 +53,10 @@ export class UserProfileService {
         return profile || null;
     }
 
+    async deleteProfile(userId: string | object): Promise<void> {
+        await this.profileModel.deleteOne({ userId });
+    }
+
     async updateUserAndProfile(userId: string, body: any) {
         const {
             fName,
