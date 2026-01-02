@@ -168,16 +168,25 @@ export class RecommendationService {
     // Pull a lightweight snapshot of the user profile so the UI can display context
     const profile = await this.userProfileModel.findOne({ userId }).lean();
 
-    const exercises = (program.exercises || []).map((ex: any) => ({
-      exerciseId: undefined,
-      name: ex.exerciseName || ex.name || 'Exercise',
-      sets: ex.sets || 3,
-      reps: ex.reps || '8-10',
-      rest: ex.rest || 90,
-      equipment: ex.equipment || [],
-      videoUrl: ex.videoUrl || '',
-      alternateExerciseIds: [],
-    }))
+    // Deduplicate exercises by name to avoid repetition across different days
+    const seenExercises = new Set<string>();
+    const exercises = (program.exercises || [])
+      .filter((ex: any) => {
+        const key = `${ex.exerciseName || ex.name}`.toLowerCase().trim();
+        if (seenExercises.has(key)) return false;
+        seenExercises.add(key);
+        return true;
+      })
+      .map((ex: any) => ({
+        exerciseId: undefined,
+        name: ex.exerciseName || ex.name || 'Exercise',
+        sets: ex.sets || 3,
+        reps: ex.reps || '8-10',
+        rest: ex.rest || 90,
+        equipment: ex.equipment || [],
+        videoUrl: ex.videoUrl || '',
+        alternateExerciseIds: [],
+      }))
 
     // Normalize plan sections to ensure UI is never empty
     const np = program.nutritionPlan || {};
