@@ -165,6 +165,9 @@ export class RecommendationService {
 
   // Save AI-generated recommendation into collection for coach review
   async saveAIRecommendation(userId: string, program: any): Promise<any> {
+    // Pull a lightweight snapshot of the user profile so the UI can display context
+    const profile = await this.userProfileModel.findOne({ userId }).lean();
+
     const exercises = (program.exercises || []).map((ex: any) => ({
       exerciseId: undefined,
       name: ex.exerciseName || ex.name || 'Exercise',
@@ -217,6 +220,27 @@ export class RecommendationService {
       caution: fp.caution || 'Not medical advice. Avoid fasting if medical conditions; consult a physician.',
     };
 
+    // Build comprehensive snapshot from all available profile fields
+    const userProfileSnapshot = profile
+      ? {
+          experienceLevel: profile.experienceLevel || profile.currentExerciseLevel || 'beginner',
+          availableEquipment: (profile.availableEquipment && profile.availableEquipment.length > 0)
+            ? profile.availableEquipment
+            : [],
+          injuries: (profile.injuries && profile.injuries.length > 0)
+            ? profile.injuries
+            : (profile.exerciseRestrictions && profile.exerciseRestrictions.length > 0 ? profile.exerciseRestrictions : []),
+          preferredDaysPerWeek: profile.preferredDaysPerWeek ?? profile.trainingDaysPerWeek ?? 3,
+          sessionLengthMinutes: profile.sessionLengthMinutes ?? 45,
+        }
+      : {
+          experienceLevel: 'beginner',
+          availableEquipment: [],
+          injuries: [],
+          preferredDaysPerWeek: 3,
+          sessionLengthMinutes: 45,
+        };
+
     const doc = await this.recommendationModel.create({
       userId: new Types.ObjectId(userId),
       status: 'pending',
@@ -229,6 +253,7 @@ export class RecommendationService {
       sleepPlan,
       recoveryPlan,
       fastingPlan,
+      userProfileSnapshot,
     })
 
     return doc.toObject()
