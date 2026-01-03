@@ -560,11 +560,11 @@ Please create a comprehensive 8-week personalized program based on this complete
 
       // Execute all side-effects and check for failures
       const results = await Promise.allSettled([
-        this.createSessionFromRecommendation(normalized),
-        this.applyNutritionGoal(normalized),
-        this.applyFastingPlan(normalized),
-        this.applySleepPlan(normalized),
-        this.applyRecoveryPlan(normalized),
+        this.createSessionFromRecommendation({ ...normalized, userId: userObjectId }),
+        this.applyNutritionGoal({ ...normalized, userId: userObjectId }),
+        this.applyFastingPlan({ ...normalized, userId: userObjectId }),
+        this.applySleepPlan({ ...normalized, userId: userObjectId }),
+        this.applyRecoveryPlan({ ...normalized, userId: userObjectId }),
       ]);
 
       // Log any failures but don't rollback - allow partial success

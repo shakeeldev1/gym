@@ -20,12 +20,13 @@ export class UserProfileService {
     ) { }
 
     async createProfile(dto: CreateUserProfileDto): Promise<UserProfile> {
-        const profileExists = await this.profileModel.findOne({ userId: dto.userId });
+        const userObjectId = new (require('mongoose').Types.ObjectId)(dto.userId);
+        const profileExists = await this.profileModel.findOne({ userId: userObjectId });
 
         if (profileExists) {
             throw new BadRequestException('Profile already exists');
         }
-        const profile = new this.profileModel(dto);
+        const profile = new this.profileModel({ ...dto, userId: userObjectId });
         const saved = await profile.save();
 
         // Auto-generate AI-powered recommendation using comprehensive profile data
@@ -33,7 +34,7 @@ export class UserProfileService {
         if (dto.userId && ((dto.mainGoals && dto.mainGoals.length > 0) || dto.currentExerciseLevel)) {
             try {
                 console.log('Triggering AI recommendation generation with comprehensive profile...');
-                await this.recommendationService.autoGenerateRecommendation(dto.userId as any);
+                await this.recommendationService.autoGenerateRecommendation(userObjectId.toString());
                 console.log('AI recommendation generated successfully');
             } catch (error) {
                 console.error('Failed to auto-generate AI recommendations on create:', error);
@@ -45,12 +46,13 @@ export class UserProfileService {
     }
 
     async updateProfile(userId: string, dto: UpdateUserProfileDto): Promise<UserProfile> {
-        const profile = await this.profileModel.findOneAndUpdate({ userId }, dto, { new: true });
+        const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+        const profile = await this.profileModel.findOneAndUpdate({ userId: userObjectId }, { ...dto, userId: userObjectId }, { new: true, upsert: true });
         if (!profile) throw new NotFoundException('User Profile not found');
 
         // Regenerate AI recommendations on every profile update so the plan stays in sync
         try {
-            await this.recommendationService.autoGenerateRecommendation(userId);
+            await this.recommendationService.autoGenerateRecommendation(userObjectId.toString());
         } catch (error) {
             console.error('Failed to regenerate AI recommendations on profile update:', error);
             // Do not block profile update if AI generation fails
@@ -60,12 +62,14 @@ export class UserProfileService {
     }
 
     async getProfile(userId: string | object): Promise<UserProfile | null> {
-        const profile = await this.profileModel.findOne({ userId });
+        const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+        const profile = await this.profileModel.findOne({ userId: userObjectId });
         return profile || null;
     }
 
     async deleteProfile(userId: string | object): Promise<void> {
-        await this.profileModel.deleteOne({ userId });
+        const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+        await this.profileModel.deleteOne({ userId: userObjectId });
     }
 
     async updateUserAndProfile(userId: string, body: any) {
