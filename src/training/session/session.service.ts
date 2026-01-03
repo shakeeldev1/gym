@@ -60,8 +60,15 @@ export class SessionService {
 
         const sessions = await this.sessionModel
             .find(filter)
-            .populate('blocks')
-            .populate('user')
+            .populate({
+                path: 'blocks',
+                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                populate: [
+                    { path: 'sets', model: 'WorkoutSet' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                ],
+            })
+            .populate({ path: 'user', select: 'fName lName email role' })
             .exec();
         return { sessions, total: sessions.length };
     }
@@ -77,8 +84,15 @@ export class SessionService {
                     { 'user._id': userId },                // improperly embedded user doc (string)
                 ],
             })
-            .populate('blocks')
-            .populate('user')
+            .populate({
+                path: 'blocks',
+                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                populate: [
+                    { path: 'sets', model: 'WorkoutSet' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                ],
+            })
+            .populate({ path: 'user', select: 'fName lName email role' })
             .exec();
         return { sessions, total: sessions.length };
     }
