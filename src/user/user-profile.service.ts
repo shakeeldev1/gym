@@ -108,28 +108,14 @@ export class UserProfileService {
             { new: true }
         );
 
-        // Update profile
+        // Update profile with ALL fields from body to ensure complete update
         const updatedProfile = await this.profileModel.findOneAndUpdate(
             { userId: userObjectId },
             {
-                $set: {
-                    userId: userObjectId,
-                    ...(gender !== undefined && { gender }),
-                    ...(age !== undefined && { age }),
-                    ...(weight !== undefined && { weight }),
-                    ...(activityLevel !== undefined && { activityLevel }),
-                    ...(workoutStyle !== undefined && { workoutStyle }),
-                    ...(goal !== undefined && { goal }),
-                    ...(profilePicture !== undefined && { profilePicture }),
-                    ...(notes !== undefined && { notes }),
-                    ...(availableEquipment !== undefined && { availableEquipment }),
-                    ...(injuries !== undefined && { injuries }),
-                    ...(experienceLevel !== undefined && { experienceLevel }),
-                    ...(preferredDaysPerWeek !== undefined && { preferredDaysPerWeek }),
-                    ...(sessionLengthMinutes !== undefined && { sessionLengthMinutes }),
-                },
+                userId: userObjectId,
+                ...body,  // Include all fields from body for comprehensive update
             },
-            { new: true, upsert: true, runValidators: true }
+            { new: true, upsert: true, runValidators: false }
         );
 
         // Always regenerate AI recommendations after any user/admin/coach update

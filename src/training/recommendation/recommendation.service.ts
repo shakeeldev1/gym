@@ -273,8 +273,17 @@ export class RecommendationService {
 
   async autoGenerateRecommendation(userId: string): Promise<RecommendationDocument> {
     try {
-      // Delete previous pending recommendations
-      await this.recommendationModel.deleteMany({ userId, status: 'pending' });
+      // Delete previous pending recommendations to avoid duplicates
+      const userObjectId = new Types.ObjectId(userId);
+      await this.recommendationModel.deleteMany({
+        $or: [
+          { userId: userObjectId },
+          { userId },
+          { 'userId._id': userObjectId },
+          { 'userId._id': userId },
+        ],
+        status: 'pending',
+      });
 
       // Get profile
       const profile = await this.userProfileModel.findOne({ userId }).lean();

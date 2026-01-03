@@ -39,9 +39,13 @@ export class MealService {
         const start = new Date(date);
         const end = new Date(start);
         end.setUTCDate(end.getUTCDate() + 1);
+        const userObjectId = new Types.ObjectId(userId);
 
         return this.mealModel.find({
-            user: new Types.ObjectId(userId),
+            $or: [
+                { user: userObjectId },
+                { user: userId },
+            ],
             date: { $gte: start, $lt: end },
         }).populate('items.food items.recipe').exec();
     }

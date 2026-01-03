@@ -24,8 +24,15 @@ export class NutritionGoalService {
         return { message: "Nutrition goal created successfully", NutritionGoal: newGoal };
     }
 
-    async getActiveNutritionGoal(userId: number): Promise<NutritionGoal | null> {
-        return this.nutritionGoalModel.findOne({ user: new Types.ObjectId(userId.toString()), isActive: true }).exec();
+    async getActiveNutritionGoal(userId: any): Promise<NutritionGoal | null> {
+        const userObjectId = new Types.ObjectId(userId?.toString?.() || userId);
+        return this.nutritionGoalModel.findOne({
+            $or: [
+                { user: userObjectId },
+                { user: userId?.toString?.() || userId },
+            ],
+            isActive: true,
+        }).exec();
     }
 
     async updateNutritionGoal(goalId: string, dto: UpdateNutritionGoalDto) {
