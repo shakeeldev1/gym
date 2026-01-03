@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Meditation, MeditationDocument } from './schemas/meditation.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Breathwork, BreathworkDocument } from './schemas/breathwork.schema';
 import { Sleep, SleepDocument } from './schemas/sleep.schema';
 import { RecoveryPlan, RecoveryPlanDocument } from './schemas/recovery-plan.schema';
