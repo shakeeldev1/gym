@@ -41,13 +41,19 @@ export class MealService {
         end.setUTCDate(end.getUTCDate() + 1);
         const userObjectId = new Types.ObjectId(userId);
 
-        return this.mealModel.find({
+        console.log('[getMealsByDate] userId:', userId, 'userObjectId:', userObjectId, 'date:', date, 'start:', start, 'end:', end);
+
+        const meals = await this.mealModel.find({
             $or: [
                 { user: userObjectId },
                 { user: userId },
             ],
             date: { $gte: start, $lt: end },
         }).populate('items.food items.recipe').exec();
+
+        console.log('[getMealsByDate] found meals:', meals.length);
+
+        return meals;
     }
 
     async getMealById(id: string): Promise<Meal> {
