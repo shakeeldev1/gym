@@ -14,6 +14,7 @@ import { WorkoutBlock } from '../workout/schemas/workout-block.schema';
 import { WorkoutSet } from '../workout/schemas/workout-set.schema';
 import { BlockType } from '../workout/enums/blocktype.enum';
 import { AIRecommendationService } from './ai-recommendation.service';
+import { BadRequestException } from '@nestjs/common';
 
 interface RecommendationRequest {
   userId: string;
@@ -267,10 +268,9 @@ export class RecommendationService {
       userProfileSnapshot,
     })
 
-    return doc.toObject()
+    return doc.toObject();
   }
 
-  // Auto-generate recommendation on profile completion
   async autoGenerateRecommendation(userId: string): Promise<RecommendationDocument> {
     try {
       // Delete previous pending recommendations
@@ -282,10 +282,9 @@ export class RecommendationService {
         throw new Error('User profile not found');
       }
 
-      // Use AI service to generate comprehensive personalized recommendation
       // Build user description from their comprehensive profile
       const userDescription = this.buildUserDescriptionFromProfile(profile);
-      
+
       const aiProgram = await this.aiRecommendationService.generateAIRecommendation({
         userId,
         userDescription,
@@ -294,7 +293,7 @@ export class RecommendationService {
       });
 
       console.log('Generated personalized AI program for user:', userId);
-      
+
       // Persist AI-generated program as pending recommendation for coach review
       const savedRec = await this.saveAIRecommendation(userId, aiProgram);
 
