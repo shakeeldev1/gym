@@ -89,9 +89,12 @@ export class UserProfileService {
             sessionLengthMinutes,
         } = body;
 
+        // Normalize userId as ObjectId for queries/upserts
+        const userObjectId = new (require('mongoose').Types.ObjectId)(userId);
+
         // Update user info
         await this.userModel.findByIdAndUpdate(
-            userId,
+            userObjectId,
             {
                 ...(fName && { fName }),
                 ...(lName && { lName }),
@@ -103,21 +106,24 @@ export class UserProfileService {
 
         // Update profile
         const updatedProfile = await this.profileModel.findOneAndUpdate(
-            { userId },
+            { userId: userObjectId },
             {
-                ...(gender && { gender }),
-                ...(age && { age }),
-                ...(weight && { weight }),
-                ...(activityLevel && { activityLevel }),
-                ...(workoutStyle && { workoutStyle }),
-                ...(goal && { goal }),
-                ...(profilePicture && { profilePicture }),
-                ...(notes && { notes }),
-                ...(availableEquipment && { availableEquipment }),
-                ...(injuries && { injuries }),
-                ...(experienceLevel && { experienceLevel }),
-                ...(preferredDaysPerWeek && { preferredDaysPerWeek }),
-                ...(sessionLengthMinutes && { sessionLengthMinutes }),
+                $set: {
+                    userId: userObjectId,
+                    ...(gender !== undefined && { gender }),
+                    ...(age !== undefined && { age }),
+                    ...(weight !== undefined && { weight }),
+                    ...(activityLevel !== undefined && { activityLevel }),
+                    ...(workoutStyle !== undefined && { workoutStyle }),
+                    ...(goal !== undefined && { goal }),
+                    ...(profilePicture !== undefined && { profilePicture }),
+                    ...(notes !== undefined && { notes }),
+                    ...(availableEquipment !== undefined && { availableEquipment }),
+                    ...(injuries !== undefined && { injuries }),
+                    ...(experienceLevel !== undefined && { experienceLevel }),
+                    ...(preferredDaysPerWeek !== undefined && { preferredDaysPerWeek }),
+                    ...(sessionLengthMinutes !== undefined && { sessionLengthMinutes }),
+                },
             },
             { new: true, upsert: true, runValidators: true }
         );

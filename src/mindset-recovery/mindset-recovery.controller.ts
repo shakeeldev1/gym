@@ -5,6 +5,7 @@ import { CreateMeditationDto } from './dto/create-meditation.dto';
 import { CreateBreathworkDto } from './dto/create-breathwork.dto';
 import { CreateSleepDto } from './dto/create-sleep.dto';
 import { GetMindsetProgressDto } from './dto/get-progress.dto';
+import { RecoveryPlan } from './schemas/recovery-plan.schema';
 
 @Controller('mindset-recovery')
 export class MindsetRecoveryController {
@@ -51,6 +52,12 @@ export class MindsetRecoveryController {
     @Get("sleeps")
     async getSleeps(@Request() req, @Query('date') date?: string) {
         return this.mindsetRecoveryService.getSleeps(req.user.id, date);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('recovery-plan/active')
+    async getActiveRecoveryPlan(@Request() req) {
+        return this.mindsetRecoveryService.getActiveRecoveryPlan(req.user.id);
     }
 
     @UseGuards(AuthGuard)

@@ -5,13 +5,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Meditation, MeditationSchema } from './schemas/meditation.schema';
 import { Breathwork, BreathworkSchema } from './schemas/breathwork.schema';
 import { Sleep, SleepSchema } from './schemas/sleep.schema';
+import { RecoveryPlan, RecoveryPlanSchema } from './schemas/recovery-plan.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Meditation.name, schema: MeditationSchema },
       { name: Breathwork.name, schema: BreathworkSchema },
-      { name: Sleep.name, schema: SleepSchema }
+      { name: Sleep.name, schema: SleepSchema },
+      { name: RecoveryPlan.name, schema: RecoveryPlanSchema }
     ])
   ],
   controllers: [MindsetRecoveryController],

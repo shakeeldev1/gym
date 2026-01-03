@@ -8,6 +8,7 @@ import { Session } from '../session/schemas/session.schema';
 import { NutritionGoal } from '../../nutrition/nutrition-goal/schemas/nutrition-goal.schema';
 import { Fasting } from '../../fasting/schemas/fasting.schema';
 import { Sleep } from '../../mindset-recovery/schemas/sleep.schema';
+import { RecoveryPlan } from '../../mindset-recovery/schemas/recovery-plan.schema';
 import { GoalType } from '../../nutrition/nutrition-goal/enum/goal-type.enum';
 import { WorkoutBlock } from '../workout/schemas/workout-block.schema';
 import { WorkoutSet } from '../workout/schemas/workout-set.schema';
@@ -43,6 +44,7 @@ export class RecommendationService {
     @InjectModel(NutritionGoal.name) private nutritionGoalModel: Model<NutritionGoal>,
     @InjectModel(Fasting.name) private fastingModel: Model<Fasting>,
     @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
+    @InjectModel(RecoveryPlan.name) private recoveryPlanModel: Model<RecoveryPlan>,
     @InjectModel(WorkoutBlock.name) private workoutBlockModel: Model<WorkoutBlock>,
     @InjectModel(WorkoutSet.name) private workoutSetModel: Model<WorkoutSet>,
     private aiRecommendationService: AIRecommendationService,
@@ -552,12 +554,13 @@ Please create a comprehensive 8-week personalized program based on this complete
         this.applyNutritionGoal(normalized),
         this.applyFastingPlan(normalized),
         this.applySleepPlan(normalized),
+        this.applyRecoveryPlan(normalized),
       ]);
 
       // Log any failures but don't rollback - allow partial success
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const labels = ['Session', 'Nutrition', 'Fasting', 'Sleep'];
+          const labels = ['Session', 'Nutrition', 'Fasting', 'Sleep', 'Recovery'];
           console.error(`Failed to apply ${labels[index]} plan:`, result.reason);
         }
       });
@@ -565,7 +568,15 @@ Please create a comprehensive 8-week personalized program based on this complete
       console.error('Approval side-effects error:', err);
     }
 
-    return normalized;
+    // Once side effects have been applied, remove the recommendation so it is not returned again.
+    try {
+      await this.recommendationModel.findByIdAndDelete(recommendationId);
+    } catch (err) {
+      console.error('Failed to delete recommendation after approval', err);
+    }
+
+    // Return the applied data snapshot while ensuring the record is no longer stored in the recommendations collection.
+    return { ...normalized, deleted: true };
   }
 
   // Reject recommendation
@@ -682,7 +693,16 @@ Please create a comprehensive 8-week personalized program based on this complete
     try {
       const baseNote = `${rec.name || 'Program'} - ${rec.description || rec.notes || ''}`.trim();
       const notes = `${baseNote} [rec:${rec._id}]`;
-      const existing = await this.sessionModel.findOne({ user: rec.userId, notes }).lean();
+      const userId = new Types.ObjectId(rec.userId);
+      const existing = await this.sessionModel.findOne({
+        notes,
+        $or: [
+          { user: userId },
+          { user: rec.userId },
+          { 'user._id': userId },
+          { 'user._id': rec.userId },
+        ],
+      }).lean();
       if (existing) {
         console.log(`Session already exists for recommendation ${rec._id}, skipping`);
         return;
@@ -693,7 +713,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       const blockId = await this.createWorkoutBlockFromExercises(rec.exercises);
 
       const session = await this.sessionModel.create({
-        user: rec.userId,
+        user: userId,
         blocks: blockId ? [blockId] : [],
         completed: false,
         notes,
@@ -766,7 +786,8 @@ Please create a comprehensive 8-week personalized program based on this complete
   private async applyNutritionGoal(rec: any) {
     try {
       // deactivate previous active goals
-      const deactivated = await this.nutritionGoalModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      const userId = new Types.ObjectId(rec.userId);
+      const deactivated = await this.nutritionGoalModel.updateMany({ user: userId, isActive: true }, { isActive: false });
       if (deactivated.modifiedCount > 0) {
         console.log(`Deactivated ${deactivated.modifiedCount} previous nutrition goal(s)`);
       }
@@ -776,7 +797,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       const goalType = this.mapGoalType(profile?.goal);
 
       const goal: any = {
-        user: rec.userId,
+        user: userId,
         goalType,
         caloriesTarget: rec.nutritionPlan?.dailyCalories ?? 2100,
         proteinTarget: rec.nutritionPlan?.proteinTargetGrams ?? 140,
@@ -808,13 +829,14 @@ Please create a comprehensive 8-week personalized program based on this complete
       const hoursMatch = windowText.match(/(\d{1,2})[:]?\d{0,2}/);
       const goalHours = hoursMatch ? Number(hoursMatch[1]) : rec.fastingPlan?.goalHours || undefined;
 
-      const deactivated = await this.fastingModel.updateMany({ user: rec.userId, isActive: true }, { isActive: false });
+      const userId = new Types.ObjectId(rec.userId);
+      const deactivated = await this.fastingModel.updateMany({ user: userId, isActive: true }, { isActive: false });
       if (deactivated.modifiedCount > 0) {
         console.log(`Deactivated ${deactivated.modifiedCount} previous fasting plan(s)`);
       }
 
       const created = await this.fastingModel.create({
-        user: rec.userId,
+        user: userId,
         startTime: new Date(),
         goalDurationHours: goalHours,
         goalHours,
@@ -836,7 +858,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       const avgHours = range ? (Number(range[1]) + Number(range[2])) / 2 : Number(targetText) || 8;
 
       const created = await this.sleepModel.create({
-        user: rec.userId,
+        user: new Types.ObjectId(rec.userId),
         durationHours: avgHours,
         quality: undefined,
         notes: `${rec.sleepPlan?.preSleepRoutine || ''} ${rec.sleepPlan?.wakeRoutine || ''}`.trim(),
@@ -846,6 +868,29 @@ Please create a comprehensive 8-week personalized program based on this complete
       console.log(`✓ Created sleep target: ${avgHours}h (from "${targetText}")`);
     } catch (err) {
       console.error('Failed to apply sleep plan', err);
+      throw err;
+    }
+  }
+
+  private async applyRecoveryPlan(rec: any) {
+    try {
+      const userId = new Types.ObjectId(rec.userId);
+      await this.recoveryPlanModel.updateMany({ user: userId, isActive: true }, { isActive: false, endDate: new Date() });
+
+      const plan = await this.recoveryPlanModel.create({
+        user: userId,
+        restDaysPerWeek: rec.recoveryPlan?.restDaysPerWeek ?? 1,
+        mobilityMinutesPerDay: rec.recoveryPlan?.mobilityMinutesPerDay ?? 10,
+        stressManagement: rec.recoveryPlan?.stressManagement || '2-5 min breathing/box breathing daily.',
+        hydration: rec.recoveryPlan?.hydration || '35-45 ml/kg/day; more if sweating.',
+        notes: rec.recoveryPlan?.notes || '',
+        isActive: true,
+        startDate: new Date(),
+      });
+
+      console.log(`✓ Created recovery plan: ${plan.mobilityMinutesPerDay}m mobility, ${plan.restDaysPerWeek} rest days`);
+    } catch (err) {
+      console.error('Failed to apply recovery plan', err);
       throw err;
     }
   }

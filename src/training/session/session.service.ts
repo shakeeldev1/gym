@@ -67,8 +67,16 @@ export class SessionService {
     }
 
     async getSessionsByUser(userId: string): Promise<{ sessions: Session[]; total: number }> {
+        const userObjectId = new Types.ObjectId(userId);
         const sessions = await this.sessionModel
-            .find({ user: userId })
+            .find({
+                $or: [
+                    { user: userObjectId },               // correct ObjectId storage
+                    { user: userId },                      // legacy string storage
+                    { 'user._id': userObjectId },          // improperly embedded user doc
+                    { 'user._id': userId },                // improperly embedded user doc (string)
+                ],
+            })
             .populate('blocks')
             .populate('user')
             .exec();

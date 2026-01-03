@@ -4,6 +4,7 @@ import { Meditation, MeditationDocument } from './schemas/meditation.schema';
 import { Model } from 'mongoose';
 import { Breathwork, BreathworkDocument } from './schemas/breathwork.schema';
 import { Sleep, SleepDocument } from './schemas/sleep.schema';
+import { RecoveryPlan, RecoveryPlanDocument } from './schemas/recovery-plan.schema';
 import { CreateMeditationDto } from './dto/create-meditation.dto';
 import { CreateBreathworkDto } from './dto/create-breathwork.dto';
 import { CreateSleepDto } from './dto/create-sleep.dto';
@@ -13,7 +14,8 @@ import moment from 'moment';
 export class MindsetRecoveryService {
     constructor(@InjectModel(Meditation.name) private meditationModel: Model<MeditationDocument>,
         @InjectModel(Breathwork.name) private breathworkModel: Model<BreathworkDocument>,
-        @InjectModel(Sleep.name) private sleepModel: Model<SleepDocument>
+        @InjectModel(Sleep.name) private sleepModel: Model<SleepDocument>,
+        @InjectModel(RecoveryPlan.name) private recoveryPlanModel: Model<RecoveryPlanDocument>
     ) { }
 
     async addMeditation(userId: string, dto: CreateMeditationDto) {
@@ -66,6 +68,16 @@ export class MindsetRecoveryService {
             ...dto
         });
         return newSleep.save();
+    }
+
+    async upsertRecoveryPlan(userId: string, plan: Partial<RecoveryPlan>) {
+        await this.recoveryPlanModel.updateMany({ user: userId, isActive: true }, { isActive: false, endDate: new Date() });
+        const doc = new this.recoveryPlanModel({ user: userId, isActive: true, ...plan });
+        return doc.save();
+    }
+
+    async getActiveRecoveryPlan(userId: string) {
+        return this.recoveryPlanModel.findOne({ user: userId, isActive: true }).sort({ createdAt: -1 }).lean();
     }
 
     async getSleeps(userId: string, date?: string) {
