@@ -546,7 +546,13 @@ Please create a comprehensive 8-week personalized program based on this complete
     if (!doc) return null;
 
     const normalized = this.normalizePlans(doc);
-    const userObjectId = new Types.ObjectId(normalized.userId);
+
+    // Normalize user id safely (string or ObjectId) to avoid runtime errors
+    const rawUserId: any = (normalized as any).userId?._id || (normalized as any).userId || doc.userId;
+    if (!rawUserId || !Types.ObjectId.isValid(rawUserId.toString())) {
+      throw new Error('Invalid userId on recommendation');
+    }
+    const userObjectId = new Types.ObjectId(rawUserId.toString());
     
     try {
       // Clean up any prior auto-generated sessions/blocks/sets for this user to avoid duplicates
@@ -603,7 +609,11 @@ Please create a comprehensive 8-week personalized program based on this complete
 
       sessions.forEach((s: any) => {
         if (Array.isArray(s.blocks)) {
-          s.blocks.forEach((b: any) => blockIds.push(new Types.ObjectId(b)));
+          s.blocks.forEach((b: any) => {
+            if (Types.ObjectId.isValid(b?.toString())) {
+              blockIds.push(new Types.ObjectId(b));
+            }
+          });
         }
       });
 
@@ -611,7 +621,11 @@ Please create a comprehensive 8-week personalized program based on this complete
         const blocks = await this.workoutBlockModel.find({ _id: { $in: blockIds } }).lean();
         blocks.forEach((b: any) => {
           if (Array.isArray(b.sets)) {
-            b.sets.forEach((sid: any) => setIds.push(new Types.ObjectId(sid)));
+            b.sets.forEach((sid: any) => {
+              if (Types.ObjectId.isValid(sid?.toString())) {
+                setIds.push(new Types.ObjectId(sid));
+              }
+            });
           }
         });
       }
