@@ -18,7 +18,7 @@ export class AnalyticsController {
   @UseGuards(AuthGuard)
   @Get('user-stats')
   async getUserStats(@Req() req: any) {
-    const userId = req.user.sub
+    const userId = req.user?.id || req.user?.sub
     return this.analyticsService.getUserStats(userId)
   }
 
@@ -28,7 +28,7 @@ export class AnalyticsController {
     @Req() req: any,
     @Query('limit') limit?: string,
   ) {
-    const userId = req.user.sub
+    const userId = req.user?.id || req.user?.sub
     const limitNum = limit ? parseInt(limit, 10) : 5
     return this.analyticsService.getUserActivity(userId, limitNum)
   }
