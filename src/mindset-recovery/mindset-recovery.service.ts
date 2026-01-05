@@ -27,7 +27,13 @@ export class MindsetRecoveryService {
     }
 
     async getMeditations(userId: string, date?: string) {
-        const query: any = { user: userId };
+        const userObjectId = new Types.ObjectId(userId);
+        const query: any = {
+            $or: [
+                { user: userObjectId },
+                { user: userId },
+            ]
+        };
         if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
@@ -51,7 +57,13 @@ export class MindsetRecoveryService {
     }
 
     async getBreathworks(userId: string, date?: string) {
-        const query: any = { user: userId };
+        const userObjectId = new Types.ObjectId(userId);
+        const query: any = {
+            $or: [
+                { user: userObjectId },
+                { user: userId },
+            ]
+        };
         if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);

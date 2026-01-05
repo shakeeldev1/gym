@@ -21,6 +21,7 @@ export class Meal {
       {
         food: { type: Types.ObjectId, ref: 'Food' },
         recipe: { type: Types.ObjectId, ref: 'Recipe' },
+        name: { type: String },
         quantity: { type: Number, required: true },
       },
     ],
@@ -29,6 +30,7 @@ export class Meal {
   items: {
     food?: Types.ObjectId;
     recipe?: Types.ObjectId;
+    name?: string;
     quantity: number;
   }[];
 

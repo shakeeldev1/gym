@@ -270,8 +270,9 @@ export class AIDataPopulatorService {
             date: mealDate,
             items: [
               {
-                food: null, // Without actual food references, we store description in items
-                recipe: null,
+                food: undefined as any,
+                recipe: undefined as any,
+                name: meal.name || 'AI Suggested Meal',
                 quantity: 1,
               },
             ],
