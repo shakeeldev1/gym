@@ -14,12 +14,14 @@ import { MindsetRecoveryModule } from './mindset-recovery/mindset-recovery.modul
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SleepModule } from './sleep/sleep.module';
 import { ReportsModule } from './reports/reports.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [AuthModule,
     UserModule,
     ConfigModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URL as string),
+    ScheduleModule.forRoot(),
     TrainingModule,
     NutritionModule,
     FastingModule,

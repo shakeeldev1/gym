@@ -16,7 +16,18 @@ export class SessionService {
     }
 
     async getSession(id: string): Promise<Session | null> {
-        const session = await this.sessionModel.findById(id).exec();
+        const session = await this.sessionModel
+            .findById(id)
+            .populate({
+                path: 'blocks',
+                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                populate: [
+                    { path: 'sets', model: 'WorkoutSet' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                ],
+            })
+            .populate({ path: 'user', select: 'fName lName email role' })
+            .exec();
         if (!session) {
             throw new NotFoundException('Session not found');
         }
