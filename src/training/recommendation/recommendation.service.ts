@@ -14,6 +14,7 @@ import { WorkoutBlock } from '../workout/schemas/workout-block.schema';
 import { WorkoutSet } from '../workout/schemas/workout-set.schema';
 import { BlockType } from '../workout/enums/blocktype.enum';
 import { AIRecommendationService } from './ai-recommendation.service';
+import { AIDataPopulatorService } from './ai-data-populator.service';
 import { BadRequestException } from '@nestjs/common';
 
 interface RecommendationRequest {
@@ -49,6 +50,7 @@ export class RecommendationService {
     @InjectModel(WorkoutBlock.name) private workoutBlockModel: Model<WorkoutBlock>,
     @InjectModel(WorkoutSet.name) private workoutSetModel: Model<WorkoutSet>,
     private aiRecommendationService: AIRecommendationService,
+    private aiDataPopulatorService: AIDataPopulatorService,
   ) {}
 
   async getRecommendations(dto: RecommendationRequest): Promise<SessionRecommendation> {
@@ -305,6 +307,20 @@ export class RecommendationService {
 
       // Persist AI-generated program as pending recommendation for coach review
       const savedRec = await this.saveAIRecommendation(userId, aiProgram);
+
+      // ✅ NEW: Populate actual wellness data (sleep, meals, breathwork, meditation)
+      // from AI recommendations into the database
+      try {
+        await this.aiDataPopulatorService.populateAIGeneratedData(
+          userId,
+          aiProgram,
+          profile,
+        );
+        console.log('✅ AI-generated wellness data populated for user:', userId);
+      } catch (populationError) {
+        console.error('⚠️ Failed to populate AI wellness data, but recommendation saved:', populationError);
+        // Don't throw - recommendation is already saved
+      }
 
       return savedRec;
     } catch (error: any) {

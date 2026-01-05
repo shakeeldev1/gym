@@ -31,6 +31,12 @@ export class Meal {
     recipe?: Types.ObjectId;
     quantity: number;
   }[];
+
+  @Prop()
+  description?: string;
+
+  @Prop()
+  notes?: string;
 }
 
 export const MealSchema = SchemaFactory.createForClass(Meal);
