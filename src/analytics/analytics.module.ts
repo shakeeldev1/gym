@@ -8,6 +8,7 @@ import { Session, SessionSchema } from '../training/session/schemas/session.sche
 import { Meal, MealSchema } from '../nutrition/meal/schemas/meal.schema'
 import { Meditation, MeditationSchema } from '../mindset-recovery/schemas/meditation.schema'
 import { Sleep, SleepSchema } from '../mindset-recovery/schemas/sleep.schema'
+import { Breathwork, BreathworkSchema } from '../mindset-recovery/schemas/breathwork.schema'
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { Sleep, SleepSchema } from '../mindset-recovery/schemas/sleep.schema'
       { name: Meal.name, schema: MealSchema },
       { name: Meditation.name, schema: MeditationSchema },
       { name: Sleep.name, schema: SleepSchema },
+      { name: Breathwork.name, schema: BreathworkSchema },
     ])
   ],
   controllers: [AnalyticsController],

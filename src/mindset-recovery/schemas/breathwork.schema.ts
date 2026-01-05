@@ -19,6 +19,9 @@ export class Breathwork {
 
   @Prop({ default: Date.now })
   date: Date;
+
+  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  status: string;
 }
 
 export const BreathworkSchema = SchemaFactory.createForClass(Breathwork);

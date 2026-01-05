@@ -1,6 +1,7 @@
-import { Controller, Get, Query, UseGuards, Req, Param } from '@nestjs/common'
+import { Controller, Get, Query, UseGuards, Req, Param, Patch, Body } from '@nestjs/common'
 import { AnalyticsService } from "./analytics.service"
 import { AuthGuard } from '../auth/auth.guard'
+import { UpdateWellnessStatusDto } from './dto/update-wellness-status.dto'
 
 @Controller('analytics')
 export class AnalyticsController {
@@ -37,5 +38,12 @@ export class AnalyticsController {
   @Get('athlete/:id')
   async getAthleteStats(@Param('id') athleteId: string) {
     return this.analyticsService.getAthleteStats(athleteId)
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('wellness/status')
+  async updateWellnessStatus(@Req() req: any, @Body() dto: UpdateWellnessStatusDto) {
+    const userId = req.user?.id || req.user?.sub
+    return this.analyticsService.updateWellnessStatus(userId, dto)
   }
 }

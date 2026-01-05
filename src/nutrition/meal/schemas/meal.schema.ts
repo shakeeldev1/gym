@@ -34,6 +34,9 @@ export class Meal {
     quantity: number;
   }[];
 
+  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  status: string;
+
   @Prop()
   description?: string;
 

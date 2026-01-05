@@ -7,6 +7,9 @@ import { Session } from '../training/session/schemas/session.schema'
 import { Meal } from '../nutrition/meal/schemas/meal.schema'
 import { Meditation } from '../mindset-recovery/schemas/meditation.schema'
 import { Sleep } from '../mindset-recovery/schemas/sleep.schema'
+import { Breathwork } from '../mindset-recovery/schemas/breathwork.schema'
+import { UpdateWellnessStatusDto } from './dto/update-wellness-status.dto'
+import { BadRequestException, NotFoundException } from '@nestjs/common'
 
 type OverviewParams = {
   startDate?: string
@@ -22,6 +25,7 @@ export class AnalyticsService {
     @InjectModel(Meal.name) private mealModel: Model<Meal>,
     @InjectModel(Meditation.name) private meditationModel: Model<Meditation>,
     @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
+    @InjectModel(Breathwork.name) private breathworkModel: Model<Breathwork>,
   ) {}
 
   async getOverview(params: OverviewParams) {
@@ -59,6 +63,8 @@ export class AnalyticsService {
 
   async getUserStats(userId: string) {
     const userObjectId = new Types.ObjectId(userId)
+    const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
+    const doneFilter = { $or: [{ status: 'done' }, { status: { $exists: false } }] }
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -74,14 +80,14 @@ export class AnalyticsService {
       totalMeditation,
       weekMeditation
     ] = await Promise.all([
-      this.sessionModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.sessionModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }], createdAt: { $gte: weekStart } } as any),
-      this.mealModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.mealModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }], date: { $gte: todayStart } }),
-      this.fastingModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.fastingModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }], startTime: { $gte: monthStart } }),
-      this.meditationModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.meditationModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }], date: { $gte: weekStart } })
+      this.sessionModel.countDocuments(userFilter),
+      this.sessionModel.countDocuments({ ...userFilter, createdAt: { $gte: weekStart } } as any),
+      this.mealModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.mealModel.countDocuments({ ...userFilter, ...doneFilter, date: { $gte: todayStart } }),
+      this.fastingModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.fastingModel.countDocuments({ ...userFilter, ...doneFilter, startTime: { $gte: monthStart } }),
+      this.meditationModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.meditationModel.countDocuments({ ...userFilter, ...doneFilter, date: { $gte: weekStart } })
     ])
 
     return {
@@ -106,13 +112,14 @@ export class AnalyticsService {
 
   async getUserActivity(userId: string, limit: number = 5) {
     const userObjectId = new Types.ObjectId(userId)
+    const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
     // Get recent activities from different collections
     const [sessions, meals, fasting, meditation, sleep] = await Promise.all([
-      this.sessionModel.find({ $or: [{ user: userObjectId }, { user: userId }] }).sort({ _id: -1 }).limit(2).lean(),
-      this.mealModel.find({ $or: [{ user: userObjectId }, { user: userId }] }).sort({ date: -1 }).limit(2).lean(),
-      this.fastingModel.find({ $or: [{ user: userObjectId }, { user: userId }] }).sort({ startTime: -1 }).limit(1).lean(),
-      this.meditationModel.find({ $or: [{ user: userObjectId }, { user: userId }] }).sort({ date: -1 }).limit(1).lean(),
-      this.sleepModel.find({ $or: [{ user: userObjectId }, { user: userId }] }).sort({ date: -1 }).limit(1).lean()
+      this.sessionModel.find(userFilter).sort({ _id: -1 }).limit(2).lean(),
+      this.mealModel.find(userFilter).sort({ date: -1 }).limit(2).lean(),
+      this.fastingModel.find(userFilter).sort({ startTime: -1 }).limit(1).lean(),
+      this.meditationModel.find(userFilter).sort({ date: -1 }).limit(1).lean(),
+      this.sleepModel.find(userFilter).sort({ date: -1 }).limit(1).lean()
     ])
 
     // Combine and format activities
@@ -159,6 +166,8 @@ export class AnalyticsService {
 
   async getAthleteStats(userId: string) {
     const userObjectId = new Types.ObjectId(userId)
+    const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
+    const doneFilter = { $or: [{ status: 'done' }, { status: { $exists: false } }] }
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -173,22 +182,22 @@ export class AnalyticsService {
       sleepDocs,
       habitsTotal,
     ] = await Promise.all([
-      this.sessionModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
+      this.sessionModel.countDocuments(userFilter),
       this.sessionModel.countDocuments({ $and: [
-        { $or: [{ user: userObjectId }, { user: userId }] },
+        userFilter,
         { $or: [{ status: 'completed' }, { completed: true }] }
       ] } as any),
       this.sessionModel
-        .find({ $or: [{ user: userObjectId }, { user: userId }], createdAt: { $gte: weekStart } } as any)
+        .find({ ...userFilter, createdAt: { $gte: weekStart } } as any)
         .sort({ createdAt: -1 })
         .limit(5)
         .select(['notes', 'status', 'date', 'createdAt'])
         .lean(),
-      this.mealModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.fastingModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.meditationModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
-      this.sleepModel.find({ $or: [{ user: userObjectId }, { user: userId }], date: { $gte: monthStart } } as any).select(['durationHours', 'date']).lean(),
-      this.habitModel.countDocuments({ $or: [{ user: userObjectId }, { user: userId }] }),
+      this.mealModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.fastingModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.meditationModel.countDocuments({ ...userFilter, ...doneFilter }),
+      this.sleepModel.find({ ...userFilter, date: { $gte: monthStart } } as any).select(['durationHours', 'date']).lean(),
+      this.habitModel.countDocuments(userFilter),
     ])
 
     const totalSleepHours = sleepDocs.reduce((sum, doc: any) => sum + (doc.durationHours || 0), 0)
@@ -214,5 +223,30 @@ export class AnalyticsService {
       sleep: { avgHours: avgSleepHours },
       habits: { total: habitsTotal },
     }
+  }
+
+  async updateWellnessStatus(userId: string, dto: UpdateWellnessStatusDto) {
+    const userObjectId = new Types.ObjectId(userId)
+    const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
+    const modelMap: Record<UpdateWellnessStatusDto['type'], Model<any>> = {
+      meal: this.mealModel,
+      meditation: this.meditationModel,
+      breathwork: this.breathworkModel,
+      sleep: this.sleepModel,
+      fasting: this.fastingModel,
+    }
+
+    const realModel = modelMap[dto.type]
+    if (!realModel) throw new BadRequestException('Unsupported type')
+
+    const updated = await realModel.findOneAndUpdate(
+      { _id: dto.id, ...userFilter },
+      { status: dto.status },
+      { new: true }
+    )
+
+    if (!updated) throw new NotFoundException('Record not found')
+
+    return { message: 'Status updated', item: updated }
   }
 }

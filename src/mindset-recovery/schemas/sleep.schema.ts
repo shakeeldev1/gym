@@ -19,6 +19,9 @@ export class Sleep {
 
   @Prop({ default: Date.now })
   date: Date;
+
+  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  status: string;
 }
 
 export const SleepSchema = SchemaFactory.createForClass(Sleep);

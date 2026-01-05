@@ -128,6 +128,7 @@ export class AIDataPopulatorService {
         quality,
         date,
         notes: `Day ${i + 1}: ${notes}`,
+        status: 'planned',
       } as any);
     }
 
@@ -186,6 +187,7 @@ export class AIDataPopulatorService {
         type: meditationType,
         date,
         notes: `AI Recommendation: ${recoveryPlan.stressManagement}`,
+        status: 'planned',
       } as any);
     }
 
@@ -221,6 +223,7 @@ export class AIDataPopulatorService {
         type: breathworkType,
         date,
         notes: `AI Recommendation for stress management: ${recoveryPlan.stressManagement}`,
+        status: 'planned',
       } as any);
     }
 
@@ -278,6 +281,7 @@ export class AIDataPopulatorService {
             ],
             description: meal.description,
             notes: `AI Recommendation - ${meal.name}. Protein: ${meal.proteinGrams || 0}g, Carbs: ${meal.carbsGrams || 0}g, Fats: ${meal.fatsGrams || 0}g. ${meal.notes || ''}`,
+            status: 'planned',
           } as any);
         }
       }
@@ -418,6 +422,7 @@ export class AIDataPopulatorService {
           actualDurationHours: fastingDuration,
           isActive: i === 0, // Only first day is active
           notes: `AI Recommendation: ${fastingPlan.recommendedWindow}. Guidance: ${fastingPlan.guidance}. Hydration: ${fastingPlan.hydration}`,
+          status: 'planned',
         } as any);
       }
 

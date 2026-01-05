@@ -28,6 +28,9 @@ export class Fasting {
 
   @Prop({ default: false })
   isActive: boolean;
+
+  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  status: string;
 }
 
 export const FastingSchema = SchemaFactory.createForClass(Fasting);
