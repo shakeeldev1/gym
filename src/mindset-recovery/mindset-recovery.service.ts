@@ -39,7 +39,7 @@ export class MindsetRecoveryService {
             start.setHours(0, 0, 0, 0);
             const end = new Date(date);
             end.setHours(23, 59, 59, 999);
-            query.createdAt = { $gte: start, $lte: end };
+            query.date = { $gte: start, $lte: end };
         }
         return this.meditationModel.find(query).exec();
     }
@@ -69,7 +69,7 @@ export class MindsetRecoveryService {
             start.setHours(0, 0, 0, 0);
             const end = new Date(date);
             end.setHours(23, 59, 59, 999);
-            query.createdAt = { $gte: start, $lte: end };
+            query.date = { $gte: start, $lte: end };
         }
         return this.breathworkModel.find(query).exec();
     }
@@ -105,7 +105,7 @@ export class MindsetRecoveryService {
             start.setHours(0, 0, 0, 0);
             const end = new Date(date);
             end.setHours(23, 59, 59, 999);
-            query.createdAt = { $gte: start, $lte: end };
+            query.date = { $gte: start, $lte: end };
         }
         return this.sleepModel.find(query).exec();
     }
