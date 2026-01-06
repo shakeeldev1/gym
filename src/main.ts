@@ -1,8 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { webcrypto } from 'crypto';
 
 async function bootstrap() {
+  // Ensure global crypto exists (some schedulers expect webcrypto in Node)
+  if (!(global as any).crypto) {
+    (global as any).crypto = webcrypto;
+  }
+
   const app = await NestFactory.create(AppModule);
   
   // Enable CORS for frontend development and production
