@@ -18,6 +18,18 @@ export class createExerciseDto {
 
     @IsOptional()
     @IsString()
+    videoPublicId?: string;
+
+    @IsOptional()
+    @IsString()
+    posterUrl?: string;
+
+    @IsOptional()
+    @IsString()
+    posterPublicId?: string;
+
+    @IsOptional()
+    @IsString()
     description?: string;
 
     @IsOptional()

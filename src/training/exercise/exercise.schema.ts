@@ -21,6 +21,15 @@ export class Exercise {
     videoUrl?: string;
 
     @Prop()
+    videoPublicId?: string;
+
+    @Prop()
+    posterUrl?: string;
+
+    @Prop()
+    posterPublicId?: string;
+
+    @Prop()
     isCustom: boolean;
 
     @Prop({ type: String })

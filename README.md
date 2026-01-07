@@ -31,6 +31,16 @@
 $ npm install
 ```
 
+### Cloudinary configuration
+
+Set the following environment variables for media uploads:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+The client uploads media directly to Cloudinary using a signed upload. The server exposes `POST /training/exercise/sign-upload` to return a `{ timestamp, signature, apiKey, cloudName, folder }` for the client to use.
+
 ## Compile and run the project
 
 ```bash
