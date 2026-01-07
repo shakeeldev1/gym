@@ -46,4 +46,14 @@ export class AnalyticsController {
     const userId = req.user?.id || req.user?.sub
     return this.analyticsService.updateWellnessStatus(userId, dto)
   }
+
+  @UseGuards(AuthGuard)
+  @Get('daily-stats')
+  async getDailyStats(
+    @Req() req: any,
+    @Query('date') date?: string,
+  ) {
+    const userId = req.user?.id || req.user?.sub
+    return this.analyticsService.getDailyStats(userId, date)
+  }
 }

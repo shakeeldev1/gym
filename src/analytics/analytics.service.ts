@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose'
 import { Model, Types } from 'mongoose'
 import { Fasting } from '../fasting/schemas/fasting.schema'
 import { Habit } from '../habits/schemas/habit.schema'
+import { HabitLog } from '../habits/schemas/habit-log.schema'
 import { Session } from '../training/session/schemas/session.schema'
 import { Meal } from '../nutrition/meal/schemas/meal.schema'
 import { Meditation } from '../mindset-recovery/schemas/meditation.schema'
 import { Sleep } from '../mindset-recovery/schemas/sleep.schema'
 import { Breathwork } from '../mindset-recovery/schemas/breathwork.schema'
 import { UpdateWellnessStatusDto } from './dto/update-wellness-status.dto'
+import { DailyStatsResponseDto, CategoryStats } from './dto/daily-stats-response.dto'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 
 type OverviewParams = {
@@ -21,6 +23,7 @@ export class AnalyticsService {
   constructor(
     @InjectModel(Fasting.name) private fastingModel: Model<Fasting>,
     @InjectModel(Habit.name) private habitModel: Model<Habit>,
+    @InjectModel(HabitLog.name) private habitLogModel: Model<HabitLog>,
     @InjectModel(Session.name) private sessionModel: Model<Session>,
     @InjectModel(Meal.name) private mealModel: Model<Meal>,
     @InjectModel(Meditation.name) private meditationModel: Model<Meditation>,
@@ -248,5 +251,163 @@ export class AnalyticsService {
     if (!updated) throw new NotFoundException('Record not found')
 
     return { message: 'Status updated', item: updated }
+  }
+
+  async getDailyStats(userId: string, dateStr?: string): Promise<DailyStatsResponseDto> {
+    const userObjectId = new Types.ObjectId(userId)
+    const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
+
+    // Parse the date or use today
+    const targetDate = dateStr ? new Date(dateStr) : new Date()
+    const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+
+    // Format date string for comparison (YYYY-MM-DD)
+    const dateString = dayStart.toISOString().split('T')[0]
+
+    // Define targets for each category
+    const targets = {
+      sleep: 8, // 8 hours
+      workout: 1, // 1 session
+      nutrition: 3, // 3 meals
+      meditation: 1, // 1 session
+      fasting: 16, // 16 hours
+      habits: 0, // Will be calculated based on active habits
+    }
+
+    // Get data for today in parallel
+    const [
+      sleepData,
+      workoutCount,
+      nutritionCount,
+      meditationCount,
+      fastingData,
+      activeHabits,
+      habitLogs,
+    ] = await Promise.all([
+      // Sleep: Get today's sleep entry
+      this.sleepModel.findOne({
+        ...userFilter,
+        date: { $gte: dayStart, $lt: dayEnd }
+      } as any).lean(),
+
+      // Workout: Count sessions created today
+      this.sessionModel.countDocuments({
+        ...userFilter,
+        createdAt: { $gte: dayStart, $lt: dayEnd }
+      } as any),
+
+      // Nutrition: Count meals for today
+      this.mealModel.countDocuments({
+        ...userFilter,
+        date: { $gte: dayStart, $lt: dayEnd }
+      } as any),
+
+      // Meditation: Count meditation sessions for today
+      this.meditationModel.countDocuments({
+        ...userFilter,
+        date: { $gte: dayStart, $lt: dayEnd }
+      } as any),
+
+      // Fasting: Get today's fasting entry
+      this.fastingModel.findOne({
+        ...userFilter,
+        startTime: { $gte: dayStart, $lt: dayEnd }
+      } as any).lean(),
+
+      // Get active habits count
+      this.habitModel.countDocuments({ active: true }),
+
+      // Get habit logs for today
+      this.habitLogModel.countDocuments({
+        ...userFilter,
+        date: dateString
+      } as any),
+    ])
+
+    // Calculate completed values
+    const sleepCompleted = sleepData?.durationHours || 0
+    const workoutCompleted = workoutCount
+    const nutritionCompleted = nutritionCount
+    const meditationCompleted = meditationCount
+    const fastingCompleted = fastingData 
+      ? (fastingData.endTime 
+          ? Math.round((fastingData.endTime.getTime() - fastingData.startTime.getTime()) / 3600000)
+          : 0)
+      : 0
+
+    // Update habits target
+    targets.habits = activeHabits
+
+    // Build category stats
+    const categories: CategoryStats[] = [
+      {
+        category: 'Sleep',
+        completed: sleepCompleted,
+        target: targets.sleep,
+        percentage: Math.min(Math.round((sleepCompleted / targets.sleep) * 100), 100),
+        remaining: Math.max(targets.sleep - sleepCompleted, 0),
+      },
+      {
+        category: 'Workout',
+        completed: workoutCompleted,
+        target: targets.workout,
+        percentage: Math.min(Math.round((workoutCompleted / targets.workout) * 100), 100),
+        remaining: Math.max(targets.workout - workoutCompleted, 0),
+      },
+      {
+        category: 'Nutrition',
+        completed: nutritionCompleted,
+        target: targets.nutrition,
+        percentage: Math.min(Math.round((nutritionCompleted / targets.nutrition) * 100), 100),
+        remaining: Math.max(targets.nutrition - nutritionCompleted, 0),
+      },
+      {
+        category: 'Meditation',
+        completed: meditationCompleted,
+        target: targets.meditation,
+        percentage: Math.min(Math.round((meditationCompleted / targets.meditation) * 100), 100),
+        remaining: Math.max(targets.meditation - meditationCompleted, 0),
+      },
+      {
+        category: 'Fasting',
+        completed: fastingCompleted,
+        target: targets.fasting,
+        percentage: Math.min(Math.round((fastingCompleted / targets.fasting) * 100), 100),
+        remaining: Math.max(targets.fasting - fastingCompleted, 0),
+      },
+    ]
+
+    // Add habits only if there are active habits
+    if (activeHabits > 0) {
+      categories.push({
+        category: 'Habits',
+        completed: habitLogs,
+        target: targets.habits,
+        percentage: Math.min(Math.round((habitLogs / targets.habits) * 100), 100),
+        remaining: Math.max(targets.habits - habitLogs, 0),
+      })
+    }
+
+    // Calculate overall completion
+    const totalPercentage = categories.reduce((sum, cat) => sum + cat.percentage, 0)
+    const overallCompletion = Math.round(totalPercentage / categories.length)
+
+    // Calculate summary
+    const totalActivities = categories.length
+    const completedActivities = categories.filter(cat => cat.percentage === 100).length
+    const pendingActivities = totalActivities - completedActivities
+
+    return {
+      date: dateString,
+      overallCompletion,
+      categories,
+      summary: {
+        totalActivities,
+        completedActivities,
+        pendingActivities,
+      },
+    }
   }
 }
