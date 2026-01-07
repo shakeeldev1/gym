@@ -12,7 +12,7 @@ async function bootstrap() {
   
   app.enableCors({
     origin: [
-      'http://localhost:5173', // Vite dev server
+      'http://localhost:5173', 
       'http://localhost:3000', // Alternative dev port
       'http://localhost:5174', // Vite preview
       'https://health-thrive.site', // Production
