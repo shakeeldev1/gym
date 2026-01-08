@@ -191,6 +191,13 @@ export class RecommendationService {
         equipment: ex.equipment || [],
         videoUrl: ex.videoUrl || '',
         alternateExerciseIds: [],
+        setDetails: Array.from({ length: (ex.sets || 3) }, (_, i) => ({
+          setNumber: i + 1,
+          reps: ex.reps || '8-10',
+          restTime: ex.rest || 90,
+          tempo: undefined,
+          isAMRAP: false,
+        })),
       }))
 
     // Normalize plan sections to ensure UI is never empty
@@ -513,19 +520,49 @@ Please create a comprehensive 8-week personalized program based on this complete
 
   // Get recommendations for user
   async getRecommendationsForUser(userId: string, status?: string): Promise<any> {
+    // Primary query (respect status when provided)
     const query: any = { userId };
-    if (status) {
-      query.status = status;
+    if (status) query.status = status;
+
+    let recs = await this.recommendationModel.find(query).sort({ createdAt: -1 }).lean() as any[];
+
+    // If none found with status filter, try without status to return latest any-status
+    if ((!recs || recs.length === 0) && status) {
+      const anyStatus = await this.recommendationModel
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .lean() as any[];
+      if (anyStatus && anyStatus.length > 0) {
+        recs = anyStatus;
+      }
     }
-    const recs = await this.recommendationModel.find(query).sort({ createdAt: -1 }).lean() as any;
-    return (recs || []).map((r: any) => this.normalizePlans(r));
+
+    // If still none found for this user, auto-generate one pending recommendation
+    if (!recs || recs.length === 0) {
+      try {
+        const generated = await this.autoGenerateRecommendation(userId);
+        if (generated) {
+          // normalize single doc into array
+          return [this.normalizePlans(generated)];
+        }
+      } catch (e) {
+        // Fall through and return empty if generation fails
+        console.error('Auto-generate recommendation failed:', e);
+      }
+      return [];
+    }
+
+    const normalized = (recs || []).map((r: any) => this.normalizePlans(r));
+    const augmented = await Promise.all(normalized.map(r => this.augmentRecommendationWithStatus(r)));
+    return augmented;
   }
 
   // Get single recommendation
   async getRecommendation(recommendationId: string): Promise<any> {
     const doc = await this.recommendationModel.findById(recommendationId).lean();
     if (!doc) return null;
-    return this.normalizePlans(doc);
+    const norm = this.normalizePlans(doc);
+    return this.augmentRecommendationWithStatus(norm);
   }
 
   // Update recommendation (coach can modify)
@@ -695,7 +732,7 @@ Please create a comprehensive 8-week personalized program based on this complete
 
   // Ensure recommendation has default plan sections so UI never sees empty objects
   private normalizePlans(rec: any) {
-    const exercises = (rec.exercises && rec.exercises.length ? rec.exercises : [
+    let exercises = (rec.exercises && rec.exercises.length ? rec.exercises : [
       {
         name: 'Full-body circuit',
         sets: 3,
@@ -715,6 +752,27 @@ Please create a comprehensive 8-week personalized program based on this complete
         alternateExerciseIds: [],
       },
     ]);
+
+    // Ensure each exercise includes setDetails for UI consumption
+    exercises = (exercises || []).map((ex: any) => {
+      const totalSets = typeof ex.sets === 'number' && ex.sets > 0 ? ex.sets : 1;
+      const repsText = ex.reps ?? '10';
+      const restTime = ex.rest ?? 60;
+      const existing = ex.setDetails && Array.isArray(ex.setDetails) ? ex.setDetails : null;
+      const setDetails = existing && existing.length
+        ? existing
+        : Array.from({ length: totalSets }, (_, i) => ({
+            setNumber: i + 1,
+            reps: repsText,
+            restTime,
+            tempo: undefined,
+            isAMRAP: false,
+          }));
+      return {
+        ...ex,
+        setDetails,
+      };
+    });
 
     const np = rec.nutritionPlan || {};
     const nutritionPlan = {
@@ -766,6 +824,88 @@ Please create a comprehensive 8-week personalized program based on this complete
     };
   }
 
+  // Attach live status and IDs from linked session/block
+  private async augmentRecommendationWithStatus(rec: any): Promise<any> {
+    try {
+      const out: any = { ...rec };
+      const blockId = (rec.linkedBlockId && (rec.linkedBlockId._id || rec.linkedBlockId)) || null;
+      if (!blockId) return out;
+
+      // Load block with completedExercises and populated sets + exercises
+      const block: any = await this.workoutBlockModel
+        .findById(blockId)
+        .populate([
+          { path: 'sets', select: 'setNumber reps restTime tempo isAMRAP completed' },
+          { path: 'exercises', select: 'name equipment difficulty movementPattern videoUrl' },
+        ])
+        .lean();
+      if (!block) return out;
+
+      const completedExerciseIds = (block.completedExercises || []).map((id: any) => id.toString());
+      const setStatusMap = new Map<string, boolean>();
+      (block.sets || []).forEach((s: any) => {
+        setStatusMap.set((s._id || s).toString(), !!s.completed);
+      });
+
+      // Build exercise doc map for quick lookup
+      const exerciseDocMap = new Map<string, any>();
+      (block.exercises || []).forEach((ex: any) => {
+        if (ex && ex._id) exerciseDocMap.set(ex._id.toString(), ex);
+      });
+
+      out.exercises = (rec.exercises || []).map((ex: any) => {
+        const exId = (ex.exerciseId && (ex.exerciseId._id || ex.exerciseId)) || null;
+        const completed = exId ? completedExerciseIds.includes(exId.toString()) : false;
+        const setIds: any[] = Array.isArray(ex.setIds) ? ex.setIds : [];
+        const setDetails = (ex.setDetails || []).map((sd: any, idx: number) => {
+          const sid = setIds[idx] && (setIds[idx]._id || setIds[idx]) || null;
+          const sCompleted = sid ? !!setStatusMap.get(sid.toString()) : false;
+          return {
+            ...sd,
+            id: sid ? sid.toString() : undefined,
+            completed: sCompleted,
+          };
+        });
+        return {
+          ...ex,
+          id: exId ? exId.toString() : undefined,
+          completed,
+          exercise: exId ? exerciseDocMap.get(exId.toString()) || null : null,
+          setDetails,
+        };
+      });
+
+      // Attach linked block snapshot for convenience
+      out.linkedBlock = {
+        _id: (block._id || blockId).toString(),
+        restBetweenExercises: block.restBetweenExercises ?? 0,
+        completedExercises: (block.completedExercises || []).map((id: any) => id.toString()),
+        exercises: (block.exercises || []).map((ex: any) => ({
+          _id: ex?._id?.toString?.() || undefined,
+          name: ex?.name,
+          equipment: ex?.equipment,
+          difficulty: ex?.difficulty,
+          movementPattern: ex?.movementPattern,
+          videoUrl: ex?.videoUrl,
+        })),
+        sets: (block.sets || []).map((s: any) => ({
+          _id: s?._id?.toString?.() || undefined,
+          setNumber: s?.setNumber,
+          reps: s?.reps,
+          restTime: s?.restTime,
+          tempo: s?.tempo,
+          isAMRAP: s?.isAMRAP,
+          completed: !!s?.completed,
+        })),
+      };
+
+      return out;
+    } catch (e) {
+      console.error('augmentRecommendationWithStatus failed', e);
+      return rec;
+    }
+  }
+
   // Create a simple training session record so the user can follow the approved plan
   private async createSessionFromRecommendation(rec: any) {
     try {
@@ -776,7 +916,8 @@ Please create a comprehensive 8-week personalized program based on this complete
 
       // Try to map exercises to WorkoutBlock/WorkoutSet
       console.log(`Creating workout block for ${rec.exercises?.length || 0} exercises...`);
-      const blockId = await this.createWorkoutBlockFromExercises(rec.exercises);
+      const creation = await this.createWorkoutBlockFromExercises(rec.exercises);
+      const blockId = creation?.blockId || null;
 
       const session = await this.sessionModel.create({
         user: userId,
@@ -786,6 +927,24 @@ Please create a comprehensive 8-week personalized program based on this complete
       });
       
       console.log(`✓ Created session ${session._id} with ${blockId ? 1 : 0} workout block(s)`);
+
+      // Attach linkage back to recommendation for client status/ids mapping
+      if (blockId) {
+        const exercisesWithIds = (rec.exercises || []).map((ex: any, idx: number) => ({
+          ...ex,
+          exerciseId: creation?.exerciseIds?.[idx] || ex.exerciseId,
+          setIds: creation?.setIdsByExercise?.[idx] || [],
+        }));
+        await this.recommendationModel.findByIdAndUpdate(
+          rec._id,
+          {
+            linkedSessionId: session._id,
+            linkedBlockId: blockId,
+            exercises: exercisesWithIds,
+          },
+          { new: true }
+        ).lean();
+      }
     } catch (err) {
       console.error('Failed to create session from recommendation', err);
       throw err;
@@ -793,12 +952,13 @@ Please create a comprehensive 8-week personalized program based on this complete
   }
 
   // Create a WorkoutBlock and sets from exercises; best-effort name matching to Exercise collection
-  private async createWorkoutBlockFromExercises(exercises: any[]): Promise<Types.ObjectId | null> {
+  private async createWorkoutBlockFromExercises(exercises: any[]): Promise<{ blockId: Types.ObjectId, setIdsByExercise: Types.ObjectId[][], exerciseIds: Types.ObjectId[] } | null> {
     try {
       if (!exercises || exercises.length === 0) return null;
 
       const exerciseIds: Types.ObjectId[] = [];
-      const setIds: Types.ObjectId[] = [];
+      const setIdsByExercise: Types.ObjectId[][] = [];
+      const allSetIds: Types.ObjectId[] = [];
 
       for (const ex of exercises) {
         // Try to find Exercise by name (case-insensitive)
@@ -808,27 +968,41 @@ Please create a comprehensive 8-week personalized program based on this complete
           : null;
         if (found?._id) {
           exerciseIds.push(found._id as Types.ObjectId);
+        } else {
+          exerciseIds.push(undefined as unknown as Types.ObjectId);
         }
 
-        // Create a WorkoutSet capturing volume
-        const setDoc = await this.workoutSetModel.create({
-          setNumber: setIds.length + 1,
-          reps: this.parseReps(ex.reps),
-          restTime: ex.rest || 0,
-          tempo: undefined,
-          isAMRAP: false,
-        });
-        setIds.push(setDoc._id as Types.ObjectId);
+        // Create WorkoutSet documents per exercise set
+        const perExerciseSetIds: Types.ObjectId[] = [];
+        const totalSets = (Array.isArray(ex.setDetails) && ex.setDetails.length)
+          ? ex.setDetails.length
+          : (typeof ex.sets === 'number' && ex.sets > 0 ? ex.sets : 1);
+
+        for (let i = 0; i < totalSets; i++) {
+          const detail = Array.isArray(ex.setDetails) ? ex.setDetails[i] : undefined;
+          const reps = detail?.reps ?? ex.reps;
+          const restTime = detail?.restTime ?? ex.rest ?? 60;
+          const setDoc = await this.workoutSetModel.create({
+            setNumber: allSetIds.length + 1,
+            reps: this.parseReps(reps),
+            restTime,
+            tempo: undefined,
+            isAMRAP: false,
+          });
+          perExerciseSetIds.push(setDoc._id as Types.ObjectId);
+          allSetIds.push(setDoc._id as Types.ObjectId);
+        }
+        setIdsByExercise.push(perExerciseSetIds);
       }
 
       const block = await this.workoutBlockModel.create({
         type: BlockType.NORMAL,
         exercises: exerciseIds,
-        sets: setIds,
+        sets: allSetIds,
         restBetweenExercises: 0,
       });
 
-      return block._id as Types.ObjectId;
+      return { blockId: block._id as Types.ObjectId, setIdsByExercise, exerciseIds };
     } catch (err) {
       console.error('Failed to create workout block from exercises', err);
       return null;
