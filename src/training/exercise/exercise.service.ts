@@ -112,3 +112,4 @@ export class ExerciseService {
             alternateExercises: exercise.alternateExerciseIds || [],
         };
     }
+}
