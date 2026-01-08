@@ -13,7 +13,7 @@ import { FacebookStrategy } from './strategies/facebook.strategy';
   imports: [ forwardRef(() => UserModule),  ConfigModule.forRoot(), PassportModule.register({ session: false }), JwtModule.register({
     global: true,
     secret: process.env.JWT_SECRET,
-    signOptions: { expiresIn: '1h' },
+    signOptions: { expiresIn: '1d' },
   }),],
   controllers: [AuthController],
   providers: [AuthService, MailService, GoogleStrategy, FacebookStrategy],
