@@ -602,15 +602,8 @@ Please create a comprehensive 8-week personalized program based on this complete
       console.error('Approval side-effects error:', err);
     }
 
-    // Once side effects have been applied, remove the recommendation so it is not returned again.
-    try {
-      await this.recommendationModel.findByIdAndDelete(recommendationId);
-    } catch (err) {
-      console.error('Failed to delete recommendation after approval', err);
-    }
-
-    // Return the applied data snapshot while ensuring the record is no longer stored in the recommendations collection.
-    return { ...normalized, deleted: true };
+    // Keep the approved recommendation so clients can still fetch applied plans (nutrition, fasting, recovery)
+    return normalized;
   }
 
   // Remove previous AI-generated sessions/blocks/sets so updates replace, not append
