@@ -10,6 +10,33 @@ import { AddBlockDto } from './dto/add-block.dto';
 export class SessionService {
     constructor(@InjectModel(Session.name) private sessionModel: Model<Session>) { }
 
+    // Helper to add completed status to each exercise based on completedExercises array
+    private enrichExercisesWithStatus(session: any): any {
+        if (!session) return session;
+        
+        const sessionObj = session.toObject ? session.toObject() : session;
+        
+        if (sessionObj.blocks && Array.isArray(sessionObj.blocks)) {
+            sessionObj.blocks = sessionObj.blocks.map((block: any) => {
+                const completedIds = (block.completedExercises || []).map((id: any) => id.toString());
+                
+                if (block.exercises && Array.isArray(block.exercises)) {
+                    block.exercises = block.exercises.map((ex: any) => {
+                        const exId = (ex._id || ex).toString();
+                        return {
+                            ...ex,
+                            completed: completedIds.includes(exId)
+                        };
+                    });
+                }
+                
+                return block;
+            });
+        }
+        
+        return sessionObj;
+    }
+
     async createSession(dto: CreateSessionDto): Promise<Session> {
         const session = new this.sessionModel(dto);
         return session.save();
@@ -31,7 +58,7 @@ export class SessionService {
         if (!session) {
             throw new NotFoundException('Session not found');
         }
-        return session;
+        return this.enrichExercisesWithStatus(session);
     }
 
     async updateSession(id: string, dto: UpdateSessionDto): Promise<Session | null> {
@@ -81,7 +108,9 @@ export class SessionService {
             })
             .populate({ path: 'user', select: 'fName lName email role' })
             .exec();
-        return { sessions, total: sessions.length };
+        
+        const enrichedSessions = sessions.map(s => this.enrichExercisesWithStatus(s));
+        return { sessions: enrichedSessions, total: sessions.length };
     }
 
     async getSessionsByUser(userId: string): Promise<{ sessions: Session[]; total: number }> {
@@ -105,7 +134,9 @@ export class SessionService {
             })
             .populate({ path: 'user', select: 'fName lName email role' })
             .exec();
-        return { sessions, total: sessions.length };
+        
+        const enrichedSessions = sessions.map(s => this.enrichExercisesWithStatus(s));
+        return { sessions: enrichedSessions, total: sessions.length };
     }
 
 }
