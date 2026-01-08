@@ -20,7 +20,7 @@ export class SessionService {
             .findById(id)
             .populate({
                 path: 'blocks',
-                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
                 populate: [
                     { path: 'sets', model: 'WorkoutSet' },
                     { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
@@ -73,7 +73,7 @@ export class SessionService {
             .find(filter)
             .populate({
                 path: 'blocks',
-                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
                 populate: [
                     { path: 'sets', model: 'WorkoutSet' },
                     { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
@@ -97,7 +97,7 @@ export class SessionService {
             })
             .populate({
                 path: 'blocks',
-                select: 'type exercises sets restBetweenExercises createdAt updatedAt',
+                select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
                 populate: [
                     { path: 'sets', model: 'WorkoutSet' },
                     { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },

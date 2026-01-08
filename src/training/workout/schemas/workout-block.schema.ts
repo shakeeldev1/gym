@@ -18,6 +18,9 @@ export class WorkoutBlock {
     @Prop()
     restBetweenExercises?:number;
 
+    @Prop({type:[{type:Types.ObjectId,ref:"Exercise"}],default:[]})
+    completedExercises: Types.ObjectId[];
+
 }
 
 export const WorkoutBlockSchema = SchemaFactory.createForClass(WorkoutBlock);

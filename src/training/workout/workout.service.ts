@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateWorkoutBlockDto } from './dto/create-workout-block.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { WorkoutBlock } from './schemas/workout-block.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { UpdateWorkoutBlockDto } from './dto/update-workout-block.dto';
 import { AddSetDto } from './dto/add-set.dto';
 import { WorkoutSet } from './schemas/workout-set.schema';
@@ -86,11 +86,38 @@ export class WorkoutService {
             throw new NotFoundException('Workout block not found');
         }
         block.exercises = block.exercises.filter(exId => exId.toString() !== exerciseId);
+        if (Array.isArray((block as any).completedExercises)) {
+            (block as any).completedExercises = (block as any).completedExercises.filter(exId => exId.toString() !== exerciseId);
+        }
         await block.save();
         return { message: 'Exercise deleted from block successfully' };
     }
 
     async getAllBlocks(): Promise<WorkoutBlock[]> {
         return this.blockModel.find().populate('exercises sets').exec();
+    }
+
+    async setExerciseCompletion(blockId: string, exerciseId: string, completed: boolean): Promise<WorkoutBlock> {
+        const block = await this.blockModel.findById(blockId).exec();
+        if (!block) {
+            throw new NotFoundException('Workout block not found');
+        }
+
+        const exIdStr = exerciseId.toString();
+        // Ensure field exists
+        const current = (block as any).completedExercises as any[] || [];
+        const exists = current.some((id: any) => id.toString() === exIdStr);
+
+        if (completed && !exists) {
+            current.push(new Types.ObjectId(exerciseId));
+        } else if (!completed && exists) {
+            const next = current.filter((id: any) => id.toString() !== exIdStr);
+            (block as any).completedExercises = next as any;
+        }
+        if (!(block as any).completedExercises || (block as any).completedExercises.length !== current.length) {
+            (block as any).completedExercises = current as any;
+        }
+        await block.save();
+        return this.blockModel.findById(blockId).populate('exercises sets').exec() as unknown as WorkoutBlock;
     }
 }

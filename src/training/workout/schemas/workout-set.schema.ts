@@ -28,6 +28,9 @@ export class WorkoutSet {
 
     @Prop()
     autoSuggestedWeight?: number;
+
+    @Prop({ default: false })
+    completed?: boolean;
 }
 
 export const WorkoutSetSchema = SchemaFactory.createForClass(WorkoutSet);

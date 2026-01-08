@@ -63,4 +63,14 @@ export class WorkoutController {
     deleteExerciseFromBlock(@Param('blockId') blockId: string, @Param('exerciseId') exerciseId: string) {
         return this.workoutService.deleteExerciseFromBlock(blockId, exerciseId);
     }
+
+    @UseGuards(AuthGuard)
+    @Patch(":blockId/exercise/:exerciseId/status")
+    setExerciseStatus(
+        @Param('blockId') blockId: string,
+        @Param('exerciseId') exerciseId: string,
+        @Body() body: { completed: boolean },
+    ) {
+        return this.workoutService.setExerciseCompletion(blockId, exerciseId, !!body?.completed);
+    }
 }

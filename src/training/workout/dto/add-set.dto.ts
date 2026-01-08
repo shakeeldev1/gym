@@ -31,4 +31,8 @@ export class AddSetDto {
     @IsNumber()
     @IsOptional()
     autoSuggestedWeight?: number;
+
+    @IsBoolean()
+    @IsOptional()
+    completed?: boolean;
 }
