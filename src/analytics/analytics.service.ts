@@ -286,34 +286,39 @@ export class AnalyticsService {
       activeHabits,
       habitLogs,
     ] = await Promise.all([
-      // Sleep: Get today's sleep entry
+      // Sleep: Get today's sleep entry with status 'done'
       this.sleepModel.findOne({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd }
+        date: { $gte: dayStart, $lt: dayEnd },
+        status: 'done'
       } as any).lean(),
 
-      // Workout: Count sessions created today
+      // Workout: Count completed sessions created today
       this.sessionModel.countDocuments({
         ...userFilter,
-        createdAt: { $gte: dayStart, $lt: dayEnd }
+        createdAt: { $gte: dayStart, $lt: dayEnd },
+        completed: true
       } as any),
 
-      // Nutrition: Count meals for today
+      // Nutrition: Count done meals for today
       this.mealModel.countDocuments({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd }
+        date: { $gte: dayStart, $lt: dayEnd },
+        status: 'done'
       } as any),
 
-      // Meditation: Count meditation sessions for today
+      // Meditation: Count done meditation sessions for today
       this.meditationModel.countDocuments({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd }
+        date: { $gte: dayStart, $lt: dayEnd },
+        status: 'done'
       } as any),
 
-      // Fasting: Get today's fasting entry
+      // Fasting: Get today's done fasting entry
       this.fastingModel.findOne({
         ...userFilter,
-        startTime: { $gte: dayStart, $lt: dayEnd }
+        startTime: { $gte: dayStart, $lt: dayEnd },
+        status: 'done'
       } as any).lean(),
 
       // Get active habits count
