@@ -542,8 +542,9 @@ Please create a comprehensive 8-week personalized program based on this complete
       try {
         const generated = await this.autoGenerateRecommendation(userId);
         if (generated) {
-          // normalize single doc into array
-          return [this.normalizePlans(generated)];
+          // Populate alternates and normalize single doc into array
+          const populated = await this.populateAlternateExercises(generated);
+          return [this.normalizePlans(populated)];
         }
       } catch (e) {
         // Fall through and return empty if generation fails
@@ -552,7 +553,11 @@ Please create a comprehensive 8-week personalized program based on this complete
       return [];
     }
 
-    const normalized = (recs || []).map((r: any) => this.normalizePlans(r));
+    // Populate alternates for all recommendations
+    const populatedRecs = await Promise.all(
+      (recs || []).map(r => this.populateAlternateExercises(r))
+    );
+    const normalized = populatedRecs.map((r: any) => this.normalizePlans(r));
     const augmented = await Promise.all(normalized.map(r => this.augmentRecommendationWithStatus(r)));
     return augmented;
   }
@@ -730,6 +735,39 @@ Please create a comprehensive 8-week personalized program based on this complete
     return (recs || []).map((r: any) => this.normalizePlans(r));
   }
 
+  // Populate full exercise details for alternate exercises
+  private async populateAlternateExercises(rec: any): Promise<any> {
+    try {
+      const out = { ...rec };
+      const exercises = out.exercises || [];
+
+      out.exercises = await Promise.all(
+        exercises.map(async (ex: any) => {
+          const alternateIds = ex.alternateExerciseIds || [];
+          if (!alternateIds.length) {
+            return { ...ex, alternateExercises: [] };
+          }
+
+          // Fetch full details for alternate exercises
+          const alternates = await this.exerciseModel
+            .find({ _id: { $in: alternateIds } })
+            .select('_id name videoUrl posterUrl equipment')
+            .lean();
+
+          return {
+            ...ex,
+            alternateExercises: alternates || [],
+          };
+        })
+      );
+
+      return out;
+    } catch (err) {
+      console.error('Failed to populate alternate exercises:', err);
+      return rec; // Return unchanged if population fails
+    }
+  }
+
   // Ensure recommendation has default plan sections so UI never sees empty objects
   private normalizePlans(rec: any) {
     let exercises = (rec.exercises && rec.exercises.length ? rec.exercises : [
@@ -754,7 +792,10 @@ Please create a comprehensive 8-week personalized program based on this complete
     ]);
 
     // Ensure each exercise includes setDetails for UI consumption
-    exercises = (exercises || []).map((ex: any) => {
+    // Also add deterministic IDs and completion status for pending recs
+    // Include videoUrl and posterUrl for media display
+    // Populate alternate exercises with full details
+    exercises = (exercises || []).map((ex: any, exIndex: number) => {
       const totalSets = typeof ex.sets === 'number' && ex.sets > 0 ? ex.sets : 1;
       const repsText = ex.reps ?? '10';
       const restTime = ex.rest ?? 60;
@@ -768,9 +809,36 @@ Please create a comprehensive 8-week personalized program based on this complete
             tempo: undefined,
             isAMRAP: false,
           }));
+      
+      // Use exerciseId as the primary ID (for API calls and tracking)
+      const exId = ex.exerciseId ? (ex.exerciseId._id || ex.exerciseId) : `temp-ex-${exIndex}`;
+      const tempSetIds = setDetails.map((_, setIdx) => `temp-set-${exIndex}-${setIdx}`);
+
+      // Populate alternates: convert IDs to full exercise objects if available
+      const alternates = Array.isArray(ex.alternateExercises)
+        ? ex.alternateExercises.map((alt: any) => ({
+            id: alt._id || alt.id || alt,
+            name: alt.name || 'Alternate',
+            videoUrl: alt.videoUrl || '',
+            posterUrl: alt.posterUrl || '',
+            equipment: alt.equipment || [],
+          }))
+        : [];
+
       return {
         ...ex,
-        setDetails,
+        id: ex.id || exId?.toString?.() || exId,
+        exerciseId: undefined, // Remove redundant field; use 'id' instead
+        completed: ex.completed ?? false,
+        videoUrl: ex.videoUrl || '',
+        posterUrl: ex.posterUrl || '',
+        alternateExercises: alternates,
+        alternateExerciseIds: undefined, // Replaced with populatedAlternateExercises above
+        setDetails: setDetails.map((sd: any, setIdx: number) => ({
+          ...sd,
+          id: sd.id || tempSetIds[setIdx],
+          completed: sd.completed ?? false,
+        })),
       };
     });
 

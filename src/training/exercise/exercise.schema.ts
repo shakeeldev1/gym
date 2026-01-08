@@ -50,6 +50,9 @@ export class Exercise {
 
     @Prop({ type: [String], default: [] })
     progressionPath: string[]; // IDs of easier/harder variants
+
+    @Prop({ type: [String], default: [] })
+    alternateExerciseIds: string[]; // IDs of alternate/substitute exercises
 }
 
 export const ExerciseSchema = SchemaFactory.createForClass(Exercise);

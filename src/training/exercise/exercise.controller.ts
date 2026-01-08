@@ -44,6 +44,27 @@ export class ExerciseController {
     }
 
     @UseGuards(AuthGuard)
+    @Patch(':id/assign-alternates')
+    assignAlternateExercises(@Request() req, @Body() body: { alternateExerciseIds: string[] }) {
+        const id = req.params.id;
+        return this.exerciseService.assignAlternateExercises(id, body.alternateExerciseIds);
+    }
+
+    @UseGuards(AuthGuard)
+    @Patch(':id/remove-alternate/:alternateId')
+    removeAlternateExercise(@Request() req) {
+        const { id, alternateId } = req.params;
+        return this.exerciseService.removeAlternateExercise(id, alternateId);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get(':id/get-alternates')
+    getAlternateExercises(@Request() req) {
+        const id = req.params.id;
+        return this.exerciseService.getAlternateExercises(id);
+    }
+
+    @UseGuards(AuthGuard)
     @Post('sign-upload')
     signUpload(@Body() body: { folder?: string; public_id?: string }) {
         const timestamp = Math.round(Date.now() / 1000);
