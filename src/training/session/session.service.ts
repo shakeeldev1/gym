@@ -10,7 +10,7 @@ import { AddBlockDto } from './dto/add-block.dto';
 export class SessionService {
     constructor(@InjectModel(Session.name) private sessionModel: Model<Session>) { }
 
-    // Helper to add completed status to each exercise based on completedExercises array
+    // Helper to add completed status to each exercise and organize sets per exercise
     private enrichExercisesWithStatus(session: any): any {
         if (!session) return session;
         
@@ -19,20 +19,51 @@ export class SessionService {
         if (sessionObj.blocks && Array.isArray(sessionObj.blocks)) {
             sessionObj.blocks = sessionObj.blocks.map((block: any) => {
                 const completedIds = (block.completedExercises || []).map((id: any) => id.toString());
+                const allSets = block.sets || [];
                 
                 if (block.exercises && Array.isArray(block.exercises)) {
-                    block.exercises = block.exercises.map((ex: any) => {
+                    block.exercises = block.exercises.map((ex: any, exIndex: number) => {
                         const exId = (ex._id || ex).toString();
+                        
+                        // Assign sets to this exercise
+                        // If sets have exerciseIndex or exerciseId, filter by that
+                        // Otherwise, distribute sequentially
+                        const exerciseSets = allSets.filter((set: any) => {
+                            if (set.exerciseIndex !== undefined && set.exerciseIndex === exIndex) return true;
+                            if (set.exerciseId && set.exerciseId.toString() === exId) return true;
+                            return false;
+                        });
+                        
                         return {
                             ...ex,
-                            completed: completedIds.includes(exId)
+                            id: exId,
+                            exerciseId: exId,
+                            blockId: block._id?.toString?.() || block._id,
+                            completed: completedIds.includes(exId),
+                            sets: exerciseSets.map((set: any) => ({
+                                ...set,
+                                id: set._id?.toString?.() || set._id,
+                                setId: set._id?.toString?.() || set._id,
+                                exerciseId: exId,
+                                blockId: block._id?.toString?.() || block._id,
+                                completed: !!set.completed,
+                            })),
                         };
                     });
                 }
                 
+                // Add clear IDs to block level
+                block.id = block._id?.toString?.() || block._id;
+                block.blockId = block._id?.toString?.() || block._id;
+                block.sessionId = sessionObj._id?.toString?.() || sessionObj._id;
+                
                 return block;
             });
         }
+        
+        // Add session IDs
+        sessionObj.id = sessionObj._id?.toString?.() || sessionObj._id;
+        sessionObj.sessionId = sessionObj._id?.toString?.() || sessionObj._id;
         
         return sessionObj;
     }
