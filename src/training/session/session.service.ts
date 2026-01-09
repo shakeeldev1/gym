@@ -90,7 +90,7 @@ export class SessionService {
                 select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
                 populate: [
                     { path: 'sets', model: 'WorkoutSet' },
-                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl posterUrl' },
                 ],
             })
             .populate({ path: 'user', select: 'fName lName email role' })
@@ -143,7 +143,7 @@ export class SessionService {
                 select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
                 populate: [
                     { path: 'sets', model: 'WorkoutSet' },
-                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl posterUrl' },
                 ],
             })
             .populate({ path: 'user', select: 'fName lName email role' })
