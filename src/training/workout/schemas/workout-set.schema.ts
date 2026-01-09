@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type WorkoutSetDocument = WorkoutSet & Document;
 
@@ -31,6 +31,12 @@ export class WorkoutSet {
 
     @Prop({ default: false })
     completed?: boolean;
+
+    @Prop({ type: Types.ObjectId, ref: 'Exercise' })
+    exerciseId?: Types.ObjectId;
+
+    @Prop({ type: Types.ObjectId, ref: 'WorkoutBlock' })
+    blockId?: Types.ObjectId;
 }
 
 export const WorkoutSetSchema = SchemaFactory.createForClass(WorkoutSet);

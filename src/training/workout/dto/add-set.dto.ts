@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsBoolean } from "class-validator";
+import { IsNumber, IsOptional, IsBoolean, IsString } from "class-validator";
 
 export class AddSetDto {
     @IsNumber()
@@ -35,4 +35,12 @@ export class AddSetDto {
     @IsBoolean()
     @IsOptional()
     completed?: boolean;
+
+    @IsString()
+    @IsOptional()
+    exerciseId?: string;
+
+    @IsString()
+    @IsOptional()
+    blockId?: string;
 }

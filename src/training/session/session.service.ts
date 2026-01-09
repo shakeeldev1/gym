@@ -21,18 +21,24 @@ export class SessionService {
                 const completedIds = (block.completedExercises || []).map((id: any) => id.toString());
                 const allSets = block.sets || [];
                 
+                // Create a map of sets by exerciseId for quick lookup
+                const setsByExerciseId = new Map<string, any[]>();
+                allSets.forEach((set: any) => {
+                    const exId = set.exerciseId?.toString?.() || set.exerciseId;
+                    if (exId) {
+                        if (!setsByExerciseId.has(exId)) {
+                            setsByExerciseId.set(exId, []);
+                        }
+                        setsByExerciseId.get(exId)!.push(set);
+                    }
+                });
+                
                 if (block.exercises && Array.isArray(block.exercises)) {
                     block.exercises = block.exercises.map((ex: any, exIndex: number) => {
                         const exId = (ex._id || ex).toString();
                         
-                        // Assign sets to this exercise
-                        // If sets have exerciseIndex or exerciseId, filter by that
-                        // Otherwise, distribute sequentially
-                        const exerciseSets = allSets.filter((set: any) => {
-                            if (set.exerciseIndex !== undefined && set.exerciseIndex === exIndex) return true;
-                            if (set.exerciseId && set.exerciseId.toString() === exId) return true;
-                            return false;
-                        });
+                        // Get sets associated with this exercise
+                        const exerciseSets = setsByExerciseId.get(exId) || [];
                         
                         return {
                             ...ex,
@@ -56,6 +62,9 @@ export class SessionService {
                 block.id = block._id?.toString?.() || block._id;
                 block.blockId = block._id?.toString?.() || block._id;
                 block.sessionId = sessionObj._id?.toString?.() || sessionObj._id;
+                
+                // Remove block-level sets - they should only exist in exercises
+                block.sets = undefined;
                 
                 return block;
             });
