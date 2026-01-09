@@ -828,7 +828,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       return {
         ...ex,
         id: ex.id || exId?.toString?.() || exId,
-        exerciseId: undefined, // Remove redundant field; use 'id' instead
+        exerciseId: exId?.toString?.() || exId, // Keep for reference
         completed: ex.completed ?? false,
         videoUrl: ex.videoUrl || '',
         posterUrl: ex.posterUrl || '',
@@ -837,6 +837,7 @@ Please create a comprehensive 8-week personalized program based on this complete
         setDetails: setDetails.map((sd: any, setIdx: number) => ({
           ...sd,
           id: sd.id || tempSetIds[setIdx],
+          setId: sd.id || tempSetIds[setIdx], // Clear setId reference
           completed: sd.completed ?? false,
         })),
       };
@@ -897,7 +898,14 @@ Please create a comprehensive 8-week personalized program based on this complete
     try {
       const out: any = { ...rec };
       const blockId = (rec.linkedBlockId && (rec.linkedBlockId._id || rec.linkedBlockId)) || null;
-      if (!blockId) return out;
+      const sessionId = (rec.linkedSessionId && (rec.linkedSessionId._id || rec.linkedSessionId)) || null;
+      
+      if (!blockId) {
+        // Add clear IDs even if no linked block
+        out.blockId = blockId?.toString?.() || null;
+        out.sessionId = sessionId?.toString?.() || null;
+        return out;
+      }
 
       // Load block with completedExercises and populated sets + exercises
       const block: any = await this.workoutBlockModel
@@ -907,7 +915,11 @@ Please create a comprehensive 8-week personalized program based on this complete
           { path: 'exercises', select: 'name equipment difficulty movementPattern videoUrl' },
         ])
         .lean();
-      if (!block) return out;
+      if (!block) {
+        out.blockId = blockId?.toString?.();
+        out.sessionId = sessionId?.toString?.();
+        return out;
+      }
 
       const completedExerciseIds = (block.completedExercises || []).map((id: any) => id.toString());
       const setStatusMap = new Map<string, boolean>();
@@ -931,25 +943,33 @@ Please create a comprehensive 8-week personalized program based on this complete
           return {
             ...sd,
             id: sid ? sid.toString() : undefined,
+            setId: sid ? sid.toString() : undefined, // Clear setId reference
+            blockId: blockId?.toString?.(), // Add blockId to each set
             completed: sCompleted,
           };
         });
         return {
           ...ex,
           id: exId ? exId.toString() : undefined,
+          exerciseId: exId ? exId.toString() : undefined, // Keep for reference
+          blockId: blockId?.toString?.(), // Add blockId to each exercise
           completed,
           exercise: exId ? exerciseDocMap.get(exId.toString()) || null : null,
           setDetails,
         };
       });
 
-      // Attach linked block snapshot for convenience
+      // Attach linked block snapshot for convenience with clear IDs
+      out.blockId = (block._id || blockId).toString();
+      out.sessionId = sessionId?.toString?.() || null;
       out.linkedBlock = {
         _id: (block._id || blockId).toString(),
+        blockId: (block._id || blockId).toString(), // Clear blockId reference
         restBetweenExercises: block.restBetweenExercises ?? 0,
         completedExercises: (block.completedExercises || []).map((id: any) => id.toString()),
         exercises: (block.exercises || []).map((ex: any) => ({
           _id: ex?._id?.toString?.() || undefined,
+          exerciseId: ex?._id?.toString?.() || undefined, // Clear exerciseId reference
           name: ex?.name,
           equipment: ex?.equipment,
           difficulty: ex?.difficulty,
@@ -958,6 +978,7 @@ Please create a comprehensive 8-week personalized program based on this complete
         })),
         sets: (block.sets || []).map((s: any) => ({
           _id: s?._id?.toString?.() || undefined,
+          setId: s?._id?.toString?.() || undefined, // Clear setId reference
           setNumber: s?.setNumber,
           reps: s?.reps,
           restTime: s?.restTime,
