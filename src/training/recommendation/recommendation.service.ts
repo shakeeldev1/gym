@@ -1182,7 +1182,7 @@ Please create a comprehensive 8-week personalized program based on this complete
 
   private mapGoalType(goal?: string): GoalType {
     const g = (goal || '').toLowerCase();
-    if (g.includes('lose') || g.includes('cut') || g.includes('weight loss')) return GoalType.CUt;
+    if (g.includes('lose') || g.includes('cut') || g.includes('weight loss')) return GoalType.CUT;
     if (g.includes('gain') || g.includes('bulk') || g.includes('muscle')) return GoalType.BULK;
     if (g.includes('maintain') || g.includes('recomp') || g.includes('stay')) return GoalType.MAINTAIN;
     return GoalType.CUSTOM;

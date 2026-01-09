@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Request, UseGuards } from '@nestjs/common';
-import { NutritionGoalService } from './nutrition-goal.service';
+import { NutritionGoalService, NutritionPlanSuggestion } from './nutrition-goal.service';
 import { CreateNutritionGoalDto } from './dto/create-nutrition-goal.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { UpdateNutritionGoalDto } from './dto/update-nutrition-goal.dto';
@@ -28,4 +28,10 @@ export class NutritionGoalController {
         return this.nutritionGoalService.updateNutritionGoal(id, dto);
     }
 
+    @UseGuards(AuthGuard)
+    @Get('my-nutrition-plan')
+    async getMyNutritionPlan(@Request() req): Promise<NutritionPlanSuggestion> {
+        const userId = req.user.id;
+        return this.nutritionGoalService.getAINutritionPlan(userId);
+    }
 }

@@ -356,7 +356,7 @@ export class AIDataPopulatorService {
     let goalType = GoalType.MAINTAIN;
 
     if (mainGoals.includes('weight loss')) {
-      goalType = GoalType.CUt;
+      goalType = GoalType.CUT;
     } else if (mainGoals.includes('muscle gain') || mainGoals.includes('strength')) {
       goalType = GoalType.BULK;
     } else if (mainGoals.includes('weight gain')) {

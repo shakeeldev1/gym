@@ -126,4 +126,83 @@ export class FastingService {
             monthly: monthlySummary,
         };
     }
+
+    // Get AI-generated fasting plan for user
+    async getAIFastingPlan(userId: string): Promise<any> {
+        const userObjectId = new Types.ObjectId(userId);
+
+        // Get user fasting history to understand adherence
+        const history = await this.fastingModel.find({ user: userObjectId }).sort({ startTime: -1 }).lean();
+
+        const completedFasts = history.filter(f => f.actualDurationHours);
+        const avgDuration = completedFasts.length
+            ? completedFasts.reduce((sum, f) => sum + (f.actualDurationHours || 0), 0) / completedFasts.length
+            : 0;
+
+        // Generate AI recommendation based on history
+        let recommendedWindow = '14:10'; // Default intermediate
+        let dailySchedule = 'Eat 10:00 AM - 8:00 PM, Fast 8:00 PM - 10:00 AM';
+        let guidance = '';
+
+        if (avgDuration < 12) {
+            // Beginner - shorter fasts
+            recommendedWindow = '12:12';
+            dailySchedule = 'Eat 8:00 AM - 8:00 PM, Fast 8:00 PM - 8:00 AM';
+            guidance = 'Start with 12-hour overnight fasts. Stay hydrated during fasting window.';
+        } else if (avgDuration >= 12 && avgDuration < 15) {
+            // Intermediate
+            recommendedWindow = '14:10';
+            dailySchedule = 'Eat 10:00 AM - 8:00 PM, Fast 8:00 PM - 10:00 AM';
+            guidance = 'Maintain 14-hour fasts for metabolic adaptation. Break fast with protein-rich meals.';
+        } else {
+            // Advanced
+            recommendedWindow = '16:8';
+            dailySchedule = 'Eat 12:00 PM - 8:00 PM, Fast 8:00 PM - 12:00 PM';
+            guidance = 'Extended 16-hour fasts optimal for autophagy and fat adaptation. Ensure adequate electrolytes.';
+        }
+
+        return {
+            userId,
+            status: 'suggested',
+            type: 'fasting-plan',
+            recommendedWindow,
+            dailySchedule,
+            guidance,
+            hydration: 'Water and electrolytes during fasting window; increase on intense workout days.',
+            caution: 'Not medical advice. Avoid if pregnant, nursing, or with medical conditions. Consult physician if unsure.',
+            meals: [
+                {
+                    name: 'Break-fast',
+                    time: recommendedWindow.split(':')[0].padStart(2, '0') + ':00',
+                    description: 'High protein + healthy fats. Examples: eggs + avocado, Greek yogurt + nuts',
+                    proteinGrams: 30,
+                },
+                {
+                    name: 'Lunch',
+                    time: '13:00',
+                    description: 'Balanced meal with lean protein, complex carbs, vegetables',
+                    proteinGrams: 35,
+                },
+                {
+                    name: 'Dinner',
+                    time: '19:00',
+                    description: 'Protein-forward meal; finish eating before fasting window',
+                    proteinGrams: 35,
+                },
+            ],
+            weeklySchedule: {
+                monday: { window: recommendedWindow, notes: 'Standard fast day' },
+                tuesday: { window: recommendedWindow, notes: 'Standard fast day' },
+                wednesday: { window: recommendedWindow, notes: 'Standard fast day' },
+                thursday: { window: recommendedWindow, notes: 'Standard fast day' },
+                friday: { window: recommendedWindow, notes: 'Standard fast day' },
+                saturday: { window: '12:12', notes: 'Shorter window for flexibility' },
+                sunday: { window: '12:12', notes: 'Rest/recovery day with shorter window' },
+            },
+            completedFastsCount: completedFasts.length,
+            averageDurationHours: parseFloat(avgDuration.toFixed(2)),
+            progress: history.length,
+            createdAt: new Date(),
+        };
+    }
 }

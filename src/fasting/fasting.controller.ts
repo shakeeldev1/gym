@@ -37,4 +37,10 @@ export class FastingController {
   getProgress(@Request() req) {
     return this.fastingService.getProgress(req.user.id);
   }
+  
+  @UseGuards(AuthGuard)
+  @Get('my-fasting-plan')
+  getMyFastingPlan(@Request() req) {
+    return this.fastingService.getAIFastingPlan(req.user.id);
+  }
 }

@@ -1,5 +1,5 @@
 export enum GoalType {
-    CUt = 'cut',
+    CUT = 'cut',
     BULK = 'bulk',
     MAINTAIN = 'maintain',
     CUSTOM = 'custom'

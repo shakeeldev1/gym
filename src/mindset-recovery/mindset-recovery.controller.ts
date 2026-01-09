@@ -65,4 +65,10 @@ export class MindsetRecoveryController {
     async getProgress(@Request() req, @Query() query: GetMindsetProgressDto) {
         return this.mindsetRecoveryService.getProgress(req.user.id, query.period, query.date);
     }
+    
+    @UseGuards(AuthGuard)
+    @Get('my-recovery-plan')
+    async getMyRecoveryPlan(@Request() req) {
+        return this.mindsetRecoveryService.getAIRecoveryPlan(req.user.id);
+    }
 }
