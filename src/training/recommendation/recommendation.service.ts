@@ -812,6 +812,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       
       // Use exerciseId as the primary ID (for API calls and tracking)
       const exId = ex.exerciseId ? (ex.exerciseId._id || ex.exerciseId) : `temp-ex-${exIndex}`;
+      const exIdStr = exId?.toString?.() || exId;
       const tempSetIds = setDetails.map((_, setIdx) => `temp-set-${exIndex}-${setIdx}`);
 
       // Populate alternates: convert IDs to full exercise objects if available
@@ -825,21 +826,31 @@ Please create a comprehensive 8-week personalized program based on this complete
           }))
         : [];
 
+      // Format sets for each exercise
+      const sets = setDetails.map((sd: any, setIdx: number) => {
+        const setId = sd.id || sd._id || tempSetIds[setIdx];
+        return {
+          ...sd,
+          id: setId,
+          setId: setId,
+          exerciseId: exIdStr,
+          blockId: rec.linkedBlockId?.toString?.() || rec.linkedBlockId || null,
+          completed: sd.completed ?? false,
+        };
+      });
+
       return {
         ...ex,
-        id: ex.id || exId?.toString?.() || exId,
-        exerciseId: exId?.toString?.() || exId, // Keep for reference
+        id: exIdStr,
+        exerciseId: exIdStr,
+        blockId: rec.linkedBlockId?.toString?.() || rec.linkedBlockId || null,
         completed: ex.completed ?? false,
         videoUrl: ex.videoUrl || '',
         posterUrl: ex.posterUrl || '',
         alternateExercises: alternates,
-        alternateExerciseIds: undefined, // Replaced with populatedAlternateExercises above
-        setDetails: setDetails.map((sd: any, setIdx: number) => ({
-          ...sd,
-          id: sd.id || tempSetIds[setIdx],
-          setId: sd.id || tempSetIds[setIdx], // Clear setId reference
-          completed: sd.completed ?? false,
-        })),
+        alternateExerciseIds: undefined,
+        sets, // Each exercise contains its own sets
+        setDetails: sets, // Keep setDetails for backward compatibility
       };
     });
 
@@ -911,7 +922,7 @@ Please create a comprehensive 8-week personalized program based on this complete
       const block: any = await this.workoutBlockModel
         .findById(blockId)
         .populate([
-          { path: 'sets', select: 'setNumber reps restTime tempo isAMRAP completed' },
+          { path: 'sets', select: 'setNumber reps restTime tempo isAMRAP completed exerciseId blockId' },
           { path: 'exercises', select: 'name equipment difficulty movementPattern videoUrl' },
         ])
         .lean();
@@ -922,9 +933,17 @@ Please create a comprehensive 8-week personalized program based on this complete
       }
 
       const completedExerciseIds = (block.completedExercises || []).map((id: any) => id.toString());
-      const setStatusMap = new Map<string, boolean>();
+      
+      // Create a map of sets by exerciseId
+      const setsByExerciseId = new Map<string, any[]>();
       (block.sets || []).forEach((s: any) => {
-        setStatusMap.set((s._id || s).toString(), !!s.completed);
+        const exId = s.exerciseId?.toString?.() || s.exerciseId;
+        if (exId) {
+          if (!setsByExerciseId.has(exId)) {
+            setsByExerciseId.set(exId, []);
+          }
+          setsByExerciseId.get(exId)!.push(s);
+        }
       });
 
       // Build exercise doc map for quick lookup
@@ -935,27 +954,34 @@ Please create a comprehensive 8-week personalized program based on this complete
 
       out.exercises = (rec.exercises || []).map((ex: any) => {
         const exId = (ex.exerciseId && (ex.exerciseId._id || ex.exerciseId)) || null;
-        const completed = exId ? completedExerciseIds.includes(exId.toString()) : false;
-        const setIds: any[] = Array.isArray(ex.setIds) ? ex.setIds : [];
-        const setDetails = (ex.setDetails || []).map((sd: any, idx: number) => {
-          const sid = setIds[idx] && (setIds[idx]._id || setIds[idx]) || null;
-          const sCompleted = sid ? !!setStatusMap.get(sid.toString()) : false;
-          return {
-            ...sd,
-            id: sid ? sid.toString() : undefined,
-            setId: sid ? sid.toString() : undefined, // Clear setId reference
-            blockId: blockId?.toString?.(), // Add blockId to each set
-            completed: sCompleted,
-          };
-        });
+        const exIdStr = exId ? exId.toString() : null;
+        const completed = exIdStr ? completedExerciseIds.includes(exIdStr) : false;
+        
+        // Get actual sets from block for this exercise
+        const exerciseSets = exIdStr ? (setsByExerciseId.get(exIdStr) || []) : [];
+        
+        const sets = exerciseSets.map((set: any) => ({
+          id: set._id?.toString?.() || set._id,
+          setId: set._id?.toString?.() || set._id,
+          exerciseId: exIdStr,
+          blockId: blockId?.toString?.(),
+          setNumber: set.setNumber,
+          reps: set.reps,
+          restTime: set.restTime,
+          tempo: set.tempo,
+          isAMRAP: set.isAMRAP,
+          completed: !!set.completed,
+        }));
+        
         return {
           ...ex,
-          id: exId ? exId.toString() : undefined,
-          exerciseId: exId ? exId.toString() : undefined, // Keep for reference
-          blockId: blockId?.toString?.(), // Add blockId to each exercise
+          id: exIdStr,
+          exerciseId: exIdStr,
+          blockId: blockId?.toString?.(),
           completed,
-          exercise: exId ? exerciseDocMap.get(exId.toString()) || null : null,
-          setDetails,
+          exercise: exIdStr ? exerciseDocMap.get(exIdStr) || null : null,
+          sets, // Use actual sets from database
+          setDetails: sets, // Keep setDetails for backward compatibility
         };
       });
 
@@ -1049,19 +1075,29 @@ Please create a comprehensive 8-week personalized program based on this complete
       const setIdsByExercise: Types.ObjectId[][] = [];
       const allSetIds: Types.ObjectId[] = [];
 
+      // First create the block to get blockId
+      const block = await this.workoutBlockModel.create({
+        type: BlockType.NORMAL,
+        exercises: [],
+        sets: [],
+        restBetweenExercises: 0,
+      });
+
       for (const ex of exercises) {
         // Try to find Exercise by name (case-insensitive)
         const name = this.normalizeName(ex.name || ex.exercise?.name || '');
         const found = name
           ? await this.exerciseModel.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } }).select('_id').lean()
           : null;
-        if (found?._id) {
-          exerciseIds.push(found._id as Types.ObjectId);
+        
+        const exerciseId = found?._id as Types.ObjectId;
+        if (exerciseId) {
+          exerciseIds.push(exerciseId);
         } else {
           exerciseIds.push(undefined as unknown as Types.ObjectId);
         }
 
-        // Create WorkoutSet documents per exercise set
+        // Create WorkoutSet documents per exercise set with exerciseId and blockId
         const perExerciseSetIds: Types.ObjectId[] = [];
         const totalSets = (Array.isArray(ex.setDetails) && ex.setDetails.length)
           ? ex.setDetails.length
@@ -1072,11 +1108,13 @@ Please create a comprehensive 8-week personalized program based on this complete
           const reps = detail?.reps ?? ex.reps;
           const restTime = detail?.restTime ?? ex.rest ?? 60;
           const setDoc = await this.workoutSetModel.create({
-            setNumber: allSetIds.length + 1,
+            setNumber: i + 1,
             reps: this.parseReps(reps),
             restTime,
             tempo: undefined,
             isAMRAP: false,
+            exerciseId: exerciseId, // Link set to exercise
+            blockId: block._id, // Link set to block
           });
           perExerciseSetIds.push(setDoc._id as Types.ObjectId);
           allSetIds.push(setDoc._id as Types.ObjectId);
@@ -1084,12 +1122,10 @@ Please create a comprehensive 8-week personalized program based on this complete
         setIdsByExercise.push(perExerciseSetIds);
       }
 
-      const block = await this.workoutBlockModel.create({
-        type: BlockType.NORMAL,
-        exercises: exerciseIds,
-        sets: allSetIds,
-        restBetweenExercises: 0,
-      });
+      // Update block with exercises and sets
+      block.exercises = exerciseIds;
+      block.sets = allSetIds;
+      await block.save();
 
       return { blockId: block._id as Types.ObjectId, setIdsByExercise, exerciseIds };
     } catch (err) {
