@@ -54,11 +54,18 @@ export class WorkoutService {
         return newSet;
     }
 
-    async updateSetInBlock(blockId: string, setId: string, dto: UpdateSetDto): Promise<WorkoutSet> {
+    async updateSetInBlock(blockId: string, exerciseId: string, setId: string, dto: UpdateSetDto): Promise<WorkoutSet> {
         const block = await this.blockModel.findById(blockId).exec();
         if (!block) {
             throw new NotFoundException('Workout block not found');
         }
+        
+        // Validate exercise belongs to the block
+        const exerciseExists = block.exercises?.some(ex => ex.toString() === exerciseId);
+        if (!exerciseExists) {
+            throw new NotFoundException('Exercise not found in this workout block');
+        }
+        
         const updateSet = await this.setModel.findByIdAndUpdate(setId, dto, { new: true }).exec();
         if (!updateSet) {
             throw new NotFoundException('Workout set not found');

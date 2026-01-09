@@ -47,9 +47,9 @@ export class WorkoutController {
     }
 
     @UseGuards(AuthGuard)
-    @Patch(":blockId/update-set/:setId")
-    updateSetInBlock(@Param('blockId') blockId: string, @Param('setId') setId: string, @Body() dto: UpdateSetDto) {
-        return this.workoutService.updateSetInBlock(blockId, setId, dto);
+    @Patch(":blockId/exercise/:exerciseId/update-set/:setId")
+    updateSetInBlock(@Param('blockId') blockId: string, @Param('exerciseId') exerciseId: string, @Param('setId') setId: string, @Body() dto: UpdateSetDto) {
+        return this.workoutService.updateSetInBlock(blockId, exerciseId, setId, dto);
     }
 
     @UseGuards(AuthGuard)
