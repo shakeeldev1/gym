@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Meditation, MeditationDocument } from './schemas/meditation.schema';
@@ -8,6 +8,7 @@ import { RecoveryPlan, RecoveryPlanDocument } from './schemas/recovery-plan.sche
 import { CreateMeditationDto } from './dto/create-meditation.dto';
 import { CreateBreathworkDto } from './dto/create-breathwork.dto';
 import { CreateSleepDto } from './dto/create-sleep.dto';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 import moment from 'moment';
 
 export type Period = 'daily' | 'weekly' | 'monthly';
@@ -74,6 +75,7 @@ export class MindsetRecoveryService {
         @InjectModel(Breathwork.name) private readonly breathworkModel: Model<BreathworkDocument>,
         @InjectModel(Sleep.name) private readonly sleepModel: Model<SleepDocument>,
         @InjectModel(RecoveryPlan.name) private readonly recoveryPlanModel: Model<RecoveryPlanDocument>,
+        private readonly dailyResetService: DailyResetService,
     ) {}
 
     async addMeditation(userId: string, dto: CreateMeditationDto) {
@@ -134,14 +136,50 @@ export class MindsetRecoveryService {
     async getSleeps(userId: string, date?: string) {
         const userObjectId = new Types.ObjectId(userId);
         const query: Record<string, unknown> = { $or: [{ user: userObjectId }, { user: userId }] };
+        
+        // If querying for today, apply daily reset logic
         if (date) {
+            const queryDate = new Date(date);
+            const isToday = this.dailyResetService.isToday(queryDate);
+            
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
             const end = new Date(date);
             end.setHours(23, 59, 59, 999);
             query.date = { $gte: start, $lte: end };
+
+            const sleeps = await this.sleepModel.find(query).exec();
+            
+            // Transform all results to include completed boolean for clarity
+            return sleeps.map((sleep: any) => {
+                const sleepObj = sleep.toObject();
+                let status = sleepObj.status;
+                let completed = false;
+
+                // For today, reset status to 'planned' to allow re-logging
+                if (isToday) {
+                    status = 'planned';
+                }
+
+                // Determine if truly completed
+                if (status === 'done') {
+                    completed = true;
+                }
+
+                return {
+                    ...sleepObj,
+                    status,
+                    completed // Add boolean flag for easier frontend handling
+                };
+            });
         }
-        return this.sleepModel.find(query).exec();
+        
+        // For queries without date, also add completed flag
+        const sleeps = await this.sleepModel.find(query).exec();
+        return sleeps.map((sleep: any) => ({
+            ...sleep.toObject(),
+            completed: sleep.status === 'done'
+        }));
     }
 
     async getProgress(userId: string, period: Period, date?: string): Promise<ProgressResult> {

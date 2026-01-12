@@ -6,6 +6,7 @@ import { Meditation, MeditationSchema } from './schemas/meditation.schema';
 import { Breathwork, BreathworkSchema } from './schemas/breathwork.schema';
 import { Sleep, SleepSchema } from './schemas/sleep.schema';
 import { RecoveryPlan, RecoveryPlanSchema } from './schemas/recovery-plan.schema';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Module({
   imports: [
@@ -17,6 +18,6 @@ import { RecoveryPlan, RecoveryPlanSchema } from './schemas/recovery-plan.schema
     ])
   ],
   controllers: [MindsetRecoveryController],
-  providers: [MindsetRecoveryService]
+  providers: [MindsetRecoveryService, DailyResetService]
 })
 export class MindsetRecoveryModule { }

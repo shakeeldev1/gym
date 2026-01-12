@@ -11,6 +11,7 @@ import { Meditation, MeditationSchema } from '../mindset-recovery/schemas/medita
 import { Sleep, SleepSchema } from '../mindset-recovery/schemas/sleep.schema'
 import { Breathwork, BreathworkSchema } from '../mindset-recovery/schemas/breathwork.schema'
 import { WellnessCronService } from './wellness-cron.service'
+import { DailyResetService } from 'src/common/services/daily-reset.service'
 
 @Module({
   imports: [
@@ -26,6 +27,6 @@ import { WellnessCronService } from './wellness-cron.service'
     ])
   ],
   controllers: [AnalyticsController],
-  providers: [AnalyticsService, WellnessCronService],
+  providers: [AnalyticsService, WellnessCronService, DailyResetService],
 })
 export class AnalyticsModule {}

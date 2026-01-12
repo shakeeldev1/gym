@@ -5,10 +5,14 @@ import { Session } from './schemas/session.schema';
 import { Model, Types } from 'mongoose';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { AddBlockDto } from './dto/add-block.dto';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Injectable()
 export class SessionService {
-    constructor(@InjectModel(Session.name) private sessionModel: Model<Session>) { }
+    constructor(
+        @InjectModel(Session.name) private sessionModel: Model<Session>,
+        private dailyResetService: DailyResetService
+    ) { }
 
     // Helper to add completed status to each exercise and organize sets per exercise
     private enrichExercisesWithStatus(session: any): any {
@@ -177,6 +181,98 @@ export class SessionService {
         
         const enrichedSessions = sessions.map(s => this.enrichExercisesWithStatus(s));
         return { sessions: enrichedSessions, total: sessions.length };
+    }
+
+    /**
+     * Get today's sessions for a user
+     * This resets completed status for new days to show all exercises as incomplete
+     */
+    async getTodaySessionsByUser(userId: string): Promise<{ sessions: Session[]; total: number; date: string }> {
+        const userObjectId = new Types.ObjectId(userId);
+        const { start, end } = this.dailyResetService.getTodayDateRange();
+        
+        let sessions = await this.sessionModel
+            .find({
+                $or: [
+                    { user: userObjectId },
+                    { user: userId },
+                    { 'user._id': userObjectId },
+                    { 'user._id': userId },
+                ],
+                sessionDate: { $gte: start, $lt: end }
+            })
+            .populate({
+                path: 'blocks',
+                select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
+                populate: [
+                    { path: 'sets', model: 'WorkoutSet' },
+                    { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                ],
+            })
+            .populate({ path: 'user', select: 'fName lName email role' })
+            .exec();
+        
+        // If no sessions for today, copy yesterday's sessions but reset completed status
+        if (sessions.length === 0) {
+            const yesterday = new Date(start);
+            yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+            const tomorrowYesterday = new Date(yesterday);
+            tomorrowYesterday.setUTCDate(tomorrowYesterday.getUTCDate() + 1);
+
+            const yesterdaySessions = await this.sessionModel
+                .find({
+                    $or: [
+                        { user: userObjectId },
+                        { user: userId },
+                        { 'user._id': userObjectId },
+                        { 'user._id': userId },
+                    ],
+                    sessionDate: { $gte: yesterday, $lt: tomorrowYesterday }
+                })
+                .populate({
+                    path: 'blocks',
+                    select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
+                    populate: [
+                        { path: 'sets', model: 'WorkoutSet' },
+                        { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                    ],
+                })
+                .populate({ path: 'user', select: 'fName lName email role' })
+                .exec();
+
+            // Create new sessions for today with reset exercises
+            sessions = await Promise.all(yesterdaySessions.map(async (oldSession) => {
+                const newSession = new this.sessionModel({
+                    user: oldSession.user,
+                    blocks: oldSession.blocks,
+                    completed: false,
+                    sessionDate: new Date(),
+                    notes: oldSession.notes
+                });
+                return newSession.save();
+            }));
+
+            // Populate the new sessions
+            sessions = await this.sessionModel
+                .find({
+                    _id: { $in: sessions.map(s => s._id) }
+                })
+                .populate({
+                    path: 'blocks',
+                    select: 'type exercises sets restBetweenExercises completedExercises createdAt updatedAt',
+                    populate: [
+                        { path: 'sets', model: 'WorkoutSet' },
+                        { path: 'exercises', model: 'Exercise', select: 'name equipment difficulty movementPattern videoUrl' },
+                    ],
+                })
+                .populate({ path: 'user', select: 'fName lName email role' })
+                .exec();
+        }
+        
+        const enrichedSessions = sessions.map(s => this.enrichExercisesWithStatus(s));
+        const todayString = this.dailyResetService.formatDateToString(new Date());
+        
+        return { sessions: enrichedSessions, total: sessions.length, date: todayString };
     }
 
 }

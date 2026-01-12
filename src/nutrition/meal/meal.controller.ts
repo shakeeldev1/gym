@@ -23,6 +23,13 @@ export class MealController {
     }
 
     @UseGuards(AuthGuard)
+    @Get("today")
+    async getTodayMeals(@Request() req) {
+        const userId = req.user.id;
+        return this.mealService.getTodayMeals(userId);
+    }
+
+    @UseGuards(AuthGuard)
     @Get("find-by-id/:id")
     async getMealById(@Param("id") id:string){
         return this.mealService.getMealById(id);

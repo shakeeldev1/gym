@@ -15,6 +15,9 @@ export class Session {
   @Prop({ default: false })
   completed: boolean;
 
+  @Prop({ type: Date, default: () => new Date() })
+  sessionDate: Date;
+
   @Prop()
   notes?: string;
 }

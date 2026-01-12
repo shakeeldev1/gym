@@ -4,10 +4,14 @@ import { Meal } from './schemas/meal.schema';
 import { Model, Types } from 'mongoose';
 import { CreateMealDto } from './dto/create-meal.dto';
 import { UpdateMealDto } from './dto/update-meal.dto';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Injectable()
 export class MealService {
-    constructor(@InjectModel(Meal.name) private mealModel: Model<Meal>) { }
+    constructor(
+        @InjectModel(Meal.name) private mealModel: Model<Meal>,
+        private dailyResetService: DailyResetService
+    ) { }
 
     private validateItems(items: any[]) {
         items.forEach((item) => {
@@ -54,6 +58,25 @@ export class MealService {
         console.log('[getMealsByDate] found meals:', meals.length);
 
         return meals;
+    }
+
+    /**
+     * Get today's meals for a user
+     */
+    async getTodayMeals(userId: string): Promise<{ meals: Meal[], total: number, date: string }> {
+        const { start, end } = this.dailyResetService.getTodayDateRange();
+        const userObjectId = new Types.ObjectId(userId);
+
+        const meals = await this.mealModel.find({
+            $or: [
+                { user: userObjectId },
+                { user: userId },
+            ],
+            date: { $gte: start, $lt: end },
+        }).populate('items.food items.recipe').exec();
+
+        const todayString = this.dailyResetService.formatDateToString(new Date());
+        return { meals, total: meals.length, date: todayString };
     }
 
     async getMealById(id: string): Promise<Meal> {

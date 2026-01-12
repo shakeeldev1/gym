@@ -15,6 +15,13 @@ export class NutritionLogController {
     }
 
     @UseGuards(AuthGuard)
+    @Get('today')
+    getTodayLog(@Request() req) {
+        const today = new Date().toISOString().split('T')[0];
+        return this.nutritionLogService.getDailyLog(req.user.id, today);
+    }
+
+    @UseGuards(AuthGuard)
     @Get('progress')
     async getProgress(@Request() req,@Query('period') period:ProgressPeriod) {
         if(!period || !['daily', 'weekly', 'monthly'].includes(period)) {

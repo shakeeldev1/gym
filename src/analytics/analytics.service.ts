@@ -12,6 +12,7 @@ import { Breathwork } from '../mindset-recovery/schemas/breathwork.schema'
 import { UpdateWellnessStatusDto } from './dto/update-wellness-status.dto'
 import { DailyStatsResponseDto, CategoryStats } from './dto/daily-stats-response.dto'
 import { BadRequestException, NotFoundException } from '@nestjs/common'
+import { DailyResetService } from 'src/common/services/daily-reset.service'
 
 type OverviewParams = {
   startDate?: string
@@ -29,6 +30,7 @@ export class AnalyticsService {
     @InjectModel(Meditation.name) private meditationModel: Model<Meditation>,
     @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
     @InjectModel(Breathwork.name) private breathworkModel: Model<Breathwork>,
+    private dailyResetService: DailyResetService,
   ) {}
 
   async getOverview(params: OverviewParams) {
@@ -257,74 +259,98 @@ export class AnalyticsService {
     const userObjectId = new Types.ObjectId(userId)
     const userFilter = { $or: [{ user: userObjectId }, { user: userId }] }
 
-    // Parse the date or use today
+    // Use DailyResetService for consistent date handling
     const targetDate = dateStr ? new Date(dateStr) : new Date()
-    const dayStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate())
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
+    const { start: dayStart, end: dayEnd } = this.dailyResetService.getTodayDateRange()
+    
+    // If a specific date was requested, calculate its range
+    let queryStart = dayStart
+    let queryEnd = dayEnd
+    
+    if (dateStr) {
+      queryStart = new Date(Date.UTC(
+        targetDate.getUTCFullYear(),
+        targetDate.getUTCMonth(),
+        targetDate.getUTCDate(),
+        0, 0, 0, 0
+      ))
+      
+      queryEnd = new Date(Date.UTC(
+        targetDate.getUTCFullYear(),
+        targetDate.getUTCMonth(),
+        targetDate.getUTCDate() + 1,
+        0, 0, 0, 0
+      ))
+    }
 
     // Format date string for comparison (YYYY-MM-DD)
-    const dateString = dayStart.toISOString().split('T')[0]
+    const dateString = this.dailyResetService.formatDateToString(queryStart)
 
     // Define targets for each category
     const targets = {
       sleep: 8, // 8 hours
       workout: 1, // 1 session
       nutrition: 3, // 3 meals
-      meditation: 1, // 1 session
-      fasting: 16, // 16 hours
+      meditation: 1, // 1 session (30 mins)
+      breathwork: 1, // 1 session
       habits: 0, // Will be calculated based on active habits
     }
 
     // Get data for today in parallel
     const [
       sleepData,
-      workoutCount,
+      workoutSessions,
       nutritionCount,
       meditationCount,
-      fastingData,
+      breathworkCount,
       activeHabits,
-      habitLogs,
+      completedHabits,
     ] = await Promise.all([
-      // Sleep: Get today's sleep entry with status 'done'
+      // Sleep: Only get sleep if status is 'done'
       this.sleepModel.findOne({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd },
-        status: 'done'
-      } as any).lean(),
+        date: { $gte: queryStart, $lt: queryEnd },
+        status: 'done'  // Only count completed sleep
+      } as any)
+        .select('durationHours status')
+        .sort({ createdAt: -1 })
+        .lean(),
 
-      // Workout: Count completed sessions created today
+      // Workout: Count sessions by sessionDate (not createdAt)
       this.sessionModel.countDocuments({
         ...userFilter,
-        createdAt: { $gte: dayStart, $lt: dayEnd },
+        sessionDate: { $gte: queryStart, $lt: queryEnd },
         completed: true
       } as any),
 
       // Nutrition: Count done meals for today
       this.mealModel.countDocuments({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd },
+        date: { $gte: queryStart, $lt: queryEnd },
         status: 'done'
       } as any),
 
       // Meditation: Count done meditation sessions for today
       this.meditationModel.countDocuments({
         ...userFilter,
-        date: { $gte: dayStart, $lt: dayEnd },
+        date: { $gte: queryStart, $lt: queryEnd },
         status: 'done'
       } as any),
 
-      // Fasting: Get today's done fasting entry
-      this.fastingModel.findOne({
+      // Breathwork: Count done breathwork sessions for today
+      this.breathworkModel.countDocuments({
         ...userFilter,
-        startTime: { $gte: dayStart, $lt: dayEnd },
+        date: { $gte: queryStart, $lt: queryEnd },
         status: 'done'
-      } as any).lean(),
+      } as any),
 
       // Get active habits count
-      this.habitModel.countDocuments({ active: true }),
+      this.habitModel.countDocuments({ 
+        ...userFilter,
+        active: true 
+      } as any),
 
-      // Get habit logs for today
+      // Get habit logs for today (completed habits)
       this.habitLogModel.countDocuments({
         ...userFilter,
         date: dateString
@@ -333,17 +359,13 @@ export class AnalyticsService {
 
     // Calculate completed values
     const sleepCompleted = sleepData?.durationHours || 0
-    const workoutCompleted = workoutCount
+    const workoutCompleted = workoutSessions
     const nutritionCompleted = nutritionCount
     const meditationCompleted = meditationCount
-    const fastingCompleted = fastingData 
-      ? (fastingData.endTime 
-          ? Math.round((fastingData.endTime.getTime() - fastingData.startTime.getTime()) / 3600000)
-          : 0)
-      : 0
+    const breathworkCompleted = breathworkCount
 
     // Update habits target
-    targets.habits = activeHabits
+    targets.habits = activeHabits > 0 ? activeHabits : 0
 
     // Build category stats
     const categories: CategoryStats[] = [
@@ -376,11 +398,11 @@ export class AnalyticsService {
         remaining: Math.max(targets.meditation - meditationCompleted, 0),
       },
       {
-        category: 'Fasting',
-        completed: fastingCompleted,
-        target: targets.fasting,
-        percentage: Math.min(Math.round((fastingCompleted / targets.fasting) * 100), 100),
-        remaining: Math.max(targets.fasting - fastingCompleted, 0),
+        category: 'Breathwork',
+        completed: breathworkCompleted,
+        target: targets.breathwork,
+        percentage: Math.min(Math.round((breathworkCompleted / targets.breathwork) * 100), 100),
+        remaining: Math.max(targets.breathwork - breathworkCompleted, 0),
       },
     ]
 
@@ -388,10 +410,10 @@ export class AnalyticsService {
     if (activeHabits > 0) {
       categories.push({
         category: 'Habits',
-        completed: habitLogs,
+        completed: completedHabits,
         target: targets.habits,
-        percentage: Math.min(Math.round((habitLogs / targets.habits) * 100), 100),
-        remaining: Math.max(targets.habits - habitLogs, 0),
+        percentage: Math.min(Math.round((completedHabits / targets.habits) * 100), 100),
+        remaining: Math.max(targets.habits - completedHabits, 0),
       })
     }
 

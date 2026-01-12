@@ -4,6 +4,7 @@ import { HabitsService } from './habits.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Habit, HabitSchema } from './schemas/habit.schema';
 import { HabitLog, HabitLogSchema } from './schemas/habit-log.schema';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { HabitLog, HabitLogSchema } from './schemas/habit-log.schema';
     ])
   ],
   controllers: [HabitsController],
-  providers: [HabitsService]
+  providers: [HabitsService, DailyResetService],
+  exports: [HabitsService]
 })
 export class HabitsModule { }

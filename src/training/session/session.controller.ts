@@ -51,4 +51,11 @@ export class SessionController {
         const userId = req.user.id;
         return this.sessionService.getSessionsByUser(userId);
     }
+
+    @UseGuards(AuthGuard)
+    @Get("today/my-sessions")
+    async getTodayMySessions(@Request() req) {
+        const userId = req.user.id;
+        return this.sessionService.getTodaySessionsByUser(userId);
+    }
 }

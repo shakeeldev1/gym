@@ -3,6 +3,7 @@ import { SessionService } from './session.service';
 import { SessionController } from './session.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Session, SessionSchema } from './schemas/session.schema';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Module({
   imports: [
@@ -10,7 +11,7 @@ import { Session, SessionSchema } from './schemas/session.schema';
       { name: Session.name, schema: SessionSchema }
     ])
   ],
-  providers: [SessionService],
+  providers: [SessionService, DailyResetService],
   controllers: [SessionController]
 })
 export class SessionModule { }

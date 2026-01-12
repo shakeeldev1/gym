@@ -55,6 +55,20 @@ export class MindsetRecoveryController {
     }
 
     @UseGuards(AuthGuard)
+    @Get("meditation/today")
+    async getTodayMeditations(@Request() req) {
+        const today = new Date().toISOString().split('T')[0];
+        return this.mindsetRecoveryService.getMeditations(req.user.id, today);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get("breathwork/today")
+    async getTodayBreathworks(@Request() req) {
+        const today = new Date().toISOString().split('T')[0];
+        return this.mindsetRecoveryService.getBreathworks(req.user.id, today);
+    }
+
+    @UseGuards(AuthGuard)
     @Get('recovery-plan/active')
     async getActiveRecoveryPlan(@Request() req) {
         return this.mindsetRecoveryService.getActiveRecoveryPlan(req.user.id);

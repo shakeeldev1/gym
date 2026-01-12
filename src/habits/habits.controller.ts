@@ -22,6 +22,12 @@ export class HabitsController {
     }
 
     @UseGuards(AuthGuard)
+    @Get('today')
+    async getTodayHabits(@Request() req) {
+        return this.habitsService.getTodayHabits(req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
     @Post("log")
     async logHabit(@Request() req, @Body() dto: LogHabitDto) {
         return this.habitsService.logHabit(req.user.id, dto);

@@ -6,10 +6,15 @@ import { CreateHabitDto } from './dto/create-habit.dto';
 import { LogHabitDto } from './dto/log-habit.dto';
 import { HabitLog, HabitLogDocument } from './schemas/habit-log.schema';
 import { HabitCalendarEntry } from './types';
+import { DailyResetService } from 'src/common/services/daily-reset.service';
 
 @Injectable()
 export class HabitsService {
-    constructor(@InjectModel(Habit.name) private habitModel: Model<HabitDocument>, @InjectModel(HabitLog.name) private habitLogModel: Model<HabitLogDocument>) { }
+    constructor(
+        @InjectModel(Habit.name) private habitModel: Model<HabitDocument>,
+        @InjectModel(HabitLog.name) private habitLogModel: Model<HabitLogDocument>,
+        private dailyResetService: DailyResetService
+    ) { }
 
     async createHabit(userId: string, dto: CreateHabitDto): Promise<Habit> {
         const newHabit = await this.habitModel.create({
@@ -20,12 +25,82 @@ export class HabitsService {
     }
 
     async getAllHabits(userId: string): Promise<{ habits: Habit[], total: number }> {
-        const habits = await this.habitModel.find({ user: userId });
-        const total = await this.habitModel.countDocuments({ user: userId });
+        // Handle both string and ObjectId formats
+        const userObjectId = new Types.ObjectId(userId);
+        const habits = await this.habitModel.find({ 
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ]
+        });
+        const total = await this.habitModel.countDocuments({ 
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ]
+        });
         if (!habits) {
             return { total: 0, habits: [] };
         }
         return { total, habits };
+    }
+
+    /**
+     * Get today's habits with their completion status
+     * This ensures tasks are shown fresh each day
+     */
+    async getTodayHabits(userId: string): Promise<{ habits: any[], total: number, date: string }> {
+        const today = this.dailyResetService.formatDateToString(new Date());
+        const { start: startDate, end: endDate } = this.dailyResetService.getTodayDateRange();
+        
+        // Convert userId to ObjectId if it's a string
+        const userObjectId = new Types.ObjectId(userId);
+        
+        // Get all habits for the user (regardless of active status)
+        const habits = await this.habitModel.find({ 
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ]
+        });
+        
+        const habitsWithStatus = await Promise.all(habits.map(async (habit) => {
+            // Query HabitLog with proper date range (not string comparison)
+            const log = await this.habitLogModel.findOne({
+                $or: [
+                    { user: userObjectId },
+                    { user: userId }
+                ],
+                habit: habit._id,
+                date: {
+                    $gte: startDate,
+                    $lte: endDate
+                }
+            });
+            
+            // Determine completion based on log value
+            let completed = false;
+            if (log) {
+                if (typeof log.value === 'boolean') {
+                    completed = log.value;
+                } else if (typeof log.value === 'number') {
+                    completed = log.value > 0;
+                }
+            }
+            
+            return {
+                ...habit.toObject(),
+                completed,
+                logged: !!log,
+                value: log?.value || null,
+            };
+        }));
+
+        return {
+            habits: habitsWithStatus,
+            total: habits.length,
+            date: today
+        };
     }
 
     async logHabit(userId: string, dto: LogHabitDto): Promise<Habit> {
@@ -37,21 +112,35 @@ export class HabitsService {
     }
 
     async getDailySummary(userId: string, date: string): Promise<{ habit: Habit, log: HabitLog | null }[]> {
-        const habits = await this.habitModel.find({ user: userId });
+        const userObjectId = new Types.ObjectId(userId);
+        const habits = await this.habitModel.find({ 
+            $or: [
+                { user: userObjectId },
+                { user: userId }
+            ]
+        });
         const summary = await Promise.all(habits.map(async (habit) => {
-            const log = await this.habitLogModel.findOne({ user: userId, habit: habit._id, date });
+            const log = await this.habitLogModel.findOne({ 
+                $or: [
+                    { user: userObjectId },
+                    { user: userId }
+                ],
+                habit: habit._id, 
+                date 
+            });
             return { habit, log };
         }));
         return summary;
     }
 
     async getHabitStreak(userId: string, habitId: string) {
-        const user = userId;
+        const userObjectId = new Types.ObjectId(userId);
+        const user = { $or: [{ user: userObjectId }, { user: userId }] };
         const habit = habitId;
 
         const logs = await this.habitLogModel
             .find({
-                user,
+                ...user,
                 habit,
                 $or: [
                     { completed: true },
@@ -128,7 +217,8 @@ export class HabitsService {
         habitId: string,
         month: string // YYYY-MM
     ) {
-        const user = userId;
+        const userObjectId = new Types.ObjectId(userId);
+        const user = { $or: [{ user: userObjectId }, { user: userId }] };
         const habit = habitId;
 
         const startDate = new Date(`${month}-01`);
@@ -141,7 +231,7 @@ export class HabitsService {
 
         const logs = await this.habitLogModel
             .find({
-                user,
+                ...user,
                 habit,
                 date: { $gte: startDate, $lte: endDate },
                 $or: [

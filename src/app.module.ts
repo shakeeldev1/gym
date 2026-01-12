@@ -15,6 +15,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SleepModule } from './sleep/sleep.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [AuthModule,
@@ -30,7 +31,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     MindsetRecoveryModule,
     AnalyticsModule,
     SleepModule,
-    ReportsModule],
+    ReportsModule,
+    SeedModule],
   controllers: [AppController],
   providers: [AppService],
 })
