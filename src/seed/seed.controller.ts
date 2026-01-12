@@ -81,4 +81,36 @@ export class SeedController {
       };
     }
   }
+
+  /**
+   * Fix existing habits by setting active: true
+   * Usage: POST /seed/fix-habits
+   * This will update all habits with active=false to active=true
+   */
+  @UseGuards(AuthGuard)
+  @Post('fix-habits')
+  async fixHabits(@Request() req) {
+    const userId = req.user.id;
+
+    try {
+      // Update all user's habits to active: true
+      const result = await this.habitsService['habitModel'].updateMany(
+        { user: userId, active: { $ne: true } },
+        { $set: { active: true } }
+      );
+
+      return {
+        message: '✅ Habits fixed successfully',
+        data: {
+          matched: result.matchedCount || 0,
+          modified: result.modifiedCount || 0,
+        },
+      };
+    } catch (error) {
+      return {
+        message: '❌ Error fixing habits',
+        error: error.message,
+      };
+    }
+  }
 }

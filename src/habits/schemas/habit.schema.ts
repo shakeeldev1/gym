@@ -20,7 +20,7 @@ export class Habit {
     @Prop()
     unit?: string;
 
-    @Prop({default:false})
+    @Prop({default:true})
     active: boolean;
 }
 

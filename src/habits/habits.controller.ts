@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseGuards, ForbiddenException } from '@nestjs/common';
 import { HabitsService } from './habits.service';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
@@ -13,6 +13,21 @@ export class HabitsController {
     @Post('create')
     async createHabit(@Request() req, @Body() dto: CreateHabitDto) {
         return this.habitsService.createHabit(req.user.id, dto);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('assign/:userId')
+    async assignHabitToUser(
+        @Request() req, 
+        @Param('userId') targetUserId: string,
+        @Body() dto: CreateHabitDto
+    ) {
+        // Only admin/coach can assign habits to other users
+        const userRole = req.user.role;
+        if (userRole !== 'admin' && userRole !== 'coach') {
+            throw new ForbiddenException('Only admin or coach can assign habits to users');
+        }
+        return this.habitsService.createHabit(targetUserId, dto);
     }
 
     @UseGuards(AuthGuard)
@@ -55,4 +70,82 @@ export class HabitsController {
         return this.habitsService.getHabitCalendar(req.user.id, habitId, month);
     }
 
+    // ==================== HABIT SUGGESTIONS (AI & ADMIN) ====================
+
+    /**
+     * Generate AI habit suggestions for user
+     */
+    @UseGuards(AuthGuard)
+    @Post('suggestions/generate')
+    async generateHabitSuggestions(@Request() req) {
+        return this.habitsService.generateAIHabitSuggestions(req.user.id);
+    }
+
+    /**
+     * User views their approved habit suggestions
+     * NOTE: Removed - Users see all habits (AI, admin, or self-created) in /habits/today
+     */
+
+    /**
+     * Admin creates manual habit suggestion for user
+     */
+    @UseGuards(AuthGuard)
+    @Post('suggestions/create/:userId')
+    async createHabitSuggestion(
+        @Request() req,
+        @Param('userId') userId: string,
+        @Body() dto: CreateHabitDto & { reason?: string; category?: string }
+    ) {
+        // Only admin/coach can create suggestions
+        if (req.user.role !== 'admin' && req.user.role !== 'coach') {
+            throw new ForbiddenException('Only admin or coach can create habit suggestions');
+        }
+        return this.habitsService.createHabitSuggestion(req.user.id, userId, dto);
+    }
+
+    /**
+     * Admin views all pending habit suggestions
+     */
+    @UseGuards(AuthGuard)
+    @Get('suggestions/pending')
+    async getPendingSuggestions(@Request() req) {
+        // Only admin/coach can view pending suggestions
+        if (req.user.role !== 'admin' && req.user.role !== 'coach') {
+            throw new ForbiddenException('Only admin or coach can view pending suggestions');
+        }
+        return this.habitsService.getPendingHabitSuggestions();
+    }
+
+    /**
+     * Admin approves habit suggestion (creates actual habit)
+     */
+    @UseGuards(AuthGuard)
+    @Post('suggestions/:id/approve')
+    async approveHabitSuggestion(
+        @Request() req,
+        @Param('id') suggestionId: string
+    ) {
+        // Only admin/coach can approve
+        if (req.user.role !== 'admin' && req.user.role !== 'coach') {
+            throw new ForbiddenException('Only admin or coach can approve suggestions');
+        }
+        return this.habitsService.approveHabitSuggestion(suggestionId, req.user.id);
+    }
+
+    /**
+     * Admin rejects habit suggestion
+     */
+    @UseGuards(AuthGuard)
+    @Post('suggestions/:id/reject')
+    async rejectHabitSuggestion(
+        @Request() req,
+        @Param('id') suggestionId: string,
+        @Body() body: { reason?: string }
+    ) {
+        // Only admin/coach can reject
+        if (req.user.role !== 'admin' && req.user.role !== 'coach') {
+            throw new ForbiddenException('Only admin or coach can reject suggestions');
+        }
+        return this.habitsService.rejectHabitSuggestion(suggestionId, req.user.id, body.reason);
+    }
 }

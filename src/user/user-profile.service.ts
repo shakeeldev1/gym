@@ -6,6 +6,7 @@ import { CreateUserProfileDto } from './dto/create-user-profile.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { User } from './schemas/user.schema';
 import { RecommendationService } from '../training/recommendation/recommendation.service';
+import { HabitsService } from '../habits/habits.service';
 
 @Injectable()
 export class UserProfileService {
@@ -17,6 +18,7 @@ export class UserProfileService {
         private readonly userModel: Model<User>,
 
         private readonly recommendationService: RecommendationService,
+        private readonly habitsService: HabitsService,
     ) { }
 
     async createProfile(dto: CreateUserProfileDto): Promise<UserProfile> {
@@ -42,6 +44,16 @@ export class UserProfileService {
             }
         }
 
+        // Generate AI habit suggestions for new user
+        try {
+            console.log('Generating AI habit suggestions for new user...');
+            await this.habitsService.generateAIHabitSuggestions(userObjectId.toString());
+            console.log('AI habit suggestions generated successfully');
+        } catch (error) {
+            console.error('Failed to generate AI habit suggestions on profile create:', error);
+            // Don't fail profile creation if suggestions fail
+        }
+
         return saved;
     }
 
@@ -56,6 +68,14 @@ export class UserProfileService {
         } catch (error) {
             console.error('Failed to regenerate AI recommendations on profile update:', error);
             // Do not block profile update if AI generation fails
+        }
+
+        // Regenerate AI habit suggestions on profile update
+        try {
+            await this.habitsService.generateAIHabitSuggestions(userObjectId.toString());
+        } catch (error) {
+            console.error('Failed to regenerate AI habit suggestions on profile update:', error);
+            // Do not block profile update if suggestions fail
         }
 
         return profile;
@@ -126,10 +146,19 @@ export class UserProfileService {
             // Don't fail the entire profile update if recommendation generation fails
         }
 
+        // Regenerate AI habit suggestions after profile update
+        try {
+            await this.habitsService.generateAIHabitSuggestions(userId);
+        } catch (error) {
+            console.error('Failed to regenerate AI habit suggestions:', error);
+            // Don't fail the entire profile update if suggestions fail
+        }
+
         return {
             message: "Profile updated successfully",
             profileUpdated: true,
             recommendationGenerated: true,
+            habitSuggestionsGenerated: true,
         };
     }
 

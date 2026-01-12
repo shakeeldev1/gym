@@ -9,6 +9,7 @@ import { UserController } from './user.controller';
 import { UserProfileController } from './user-profile.controller';
 import { AuthModule } from 'src/auth/auth.module';
 import { RecommendationModule } from '../training/recommendation/recommendation.module';
+import { HabitsModule } from '../habits/habits.module';
 import { Fasting, FastingSchema } from '../fasting/schemas/fasting.schema';
 import { Habit, HabitSchema } from '../habits/schemas/habit.schema';
 import { HabitLog, HabitLogSchema } from '../habits/schemas/habit-log.schema';
@@ -29,6 +30,7 @@ import { Recommendation, RecommendationSchema } from '../training/recommendation
   imports: [
     forwardRef(() => AuthModule),
     forwardRef(() => RecommendationModule),
+    HabitsModule,
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: UserProfile.name, schema: UserProfileSchema },
