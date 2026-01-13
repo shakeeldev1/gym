@@ -445,6 +445,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('voice:recording:start')
+  handleVoiceRecordingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { recipientId: string; senderId: string },
+  ) {
+    const { recipientId, senderId } = data;
+    this.logger.log(`🎤 [Recording Start] User ${senderId} started recording for ${recipientId}`);
+    
+    // Emit to recipient that sender is recording
+    this.server.to(`user:${recipientId}`).emit('voice:recording:start', {
+      senderId,
+    });
+  }
+
+  @SubscribeMessage('voice:recording:stop')
+  handleVoiceRecordingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { recipientId: string; senderId: string },
+  ) {
+    const { recipientId, senderId } = data;
+    this.logger.log(`🎤 [Recording Stop] User ${senderId} stopped recording for ${recipientId}`);
+    
+    // Emit to recipient that sender stopped recording
+    this.server.to(`user:${recipientId}`).emit('voice:recording:stop', {
+      senderId,
+    });
+  }
+
   // Method to emit to specific user (can be called from service)
   emitToUser(userId: string, event: string, data: any) {
     this.server.to(`user:${userId}`).emit(event, data);

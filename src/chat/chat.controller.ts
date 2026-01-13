@@ -183,7 +183,16 @@ export class ChatController {
 
   @Get('conversations')
   async getUserConversations(@Request() req) {
-    return this.chatService.getUserConversations(req.user.id);
+    console.log('📥 GET /chat/conversations called for user:', req.user.id);
+    const conversations = await this.chatService.getUserConversations(req.user.id);
+    console.log('📤 Returning', conversations.length, 'conversations for user:', req.user.id);
+    return conversations;
+  }
+
+  @Get('user/status/:userId')
+  async getUserStatus(@Param('userId') userId: string) {
+    const isOnline = await this.chatService.isUserOnline(userId);
+    return { userId, isOnline };
   }
 
   @Post('conversations/:id/archive')

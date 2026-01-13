@@ -291,14 +291,72 @@ export class ChatService {
   async getUserConversations(userId: string) {
     const userObjectId = new Types.ObjectId(userId);
     
-    return this.conversationModel
+    console.log('🔍 getUserConversations called for userId:', userId);
+    
+    const conversations = await this.conversationModel
       .find({
         participants: userObjectId,
         archivedBy: { $ne: userObjectId },
       })
-      .populate(['participants', 'lastMessage'])
+      .populate({
+        path: 'participants',
+        select: '_id fName lName email role',
+      })
+      .populate({
+        path: 'lastMessage',
+        populate: { 
+          path: 'sender recipient', 
+          select: '_id fName lName email role' 
+        }
+      })
       .sort({ lastMessageAt: -1 })
       .exec();
+
+    console.log('✅ Found', conversations.length, 'conversations for user:', userId);
+
+    // Transform unreadCount Map to object and add user-specific unread count
+    return conversations.map(conv => {
+      const unreadCountObj: any = {};
+      
+      // Convert Map to object if it exists
+      if (conv.unreadCount && typeof conv.unreadCount === 'object') {
+        for (const [key, value] of conv.unreadCount.entries()) {
+          unreadCountObj[key.toString()] = value;
+        }
+      }
+
+      // Get unread count for current user
+      const myUnreadCount = unreadCountObj[userId] || 0;
+
+      // Add name field to participants
+      const formattedParticipants = (conv.participants as any[]).map(p => ({
+        _id: p._id,
+        email: p.email,
+        role: p.role,
+        name: p.fName && p.lName ? `${p.fName} ${p.lName}` : p.email,
+        fName: p.fName,
+        lName: p.lName,
+      }));
+
+      const lastMessageData = conv.lastMessage ? {
+        _id: (conv.lastMessage as any)?._id,
+        type: (conv.lastMessage as any)?.type,
+        content: (conv.lastMessage as any)?.content,
+        mediaUrl: (conv.lastMessage as any)?.mediaUrl,
+        mediaDuration: (conv.lastMessage as any)?.mediaDuration,
+        sender: (conv.lastMessage as any)?.sender,
+        createdAt: (conv.lastMessage as any)?.createdAt,
+      } : null;
+
+      return {
+        _id: conv._id,
+        participants: formattedParticipants,
+        lastMessage: lastMessageData,
+        lastMessageAt: conv.lastMessageAt,
+        unreadCount: myUnreadCount,
+        allUnreadCounts: unreadCountObj,
+      };
+    });
   }
 
   async archiveConversation(userId: string, conversationId: string) {
@@ -583,5 +641,12 @@ export class ChatService {
       queuedMessageCount: count,
       hasMessages: count > 0,
     };
+  }
+
+  /**
+   * Check if user is online
+   */
+  async isUserOnline(userId: string): Promise<boolean> {
+    return this.redisService.isUserOnline(userId);
   }
 }
