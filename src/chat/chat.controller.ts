@@ -65,15 +65,28 @@ export class ChatController {
   async markAsRead(@Request() req, @Body() dto: MarkAsReadDto) {
     const updatedCount = await this.chatService.markAsRead(req.user.id, dto);
     
-    // Only emit socket event if messages were actually marked as read
-    // This prevents sender's own messages from turning blue when they switch tabs
-    if (dto.conversationId && updatedCount > 0) {
-      this.chatGateway.server
-        .to(`conversation:${dto.conversationId}`)
-        .emit('message:read', {
-          conversationId: dto.conversationId,
-          readBy: req.user.id,
-        });
+    // Emit socket event for each message that was marked as read
+    if (updatedCount > 0) {
+      // Get all the messages that were just marked as read
+      const messages = await this.chatService.getMessages(dto);
+      
+      const currentUserId = String(req.user.id);
+      messages.forEach(msg => {
+        // Extract sender ID if it's an object
+        const senderId = typeof msg.sender === 'object' 
+          ? String(msg.sender?._id || msg.sender?.id)
+          : String(msg.sender);
+        
+        // Only notify the sender if it's not the current user
+        if (senderId && senderId !== currentUserId) {
+          this.chatGateway.server.to(`user:${senderId}`).emit('message:read', {
+            messageId: msg._id,
+            conversationId: dto.conversationId,
+            readBy: req.user.id,
+            readAt: new Date(),
+          });
+        }
+      });
     }
     
     return { message: 'Marked as read', updatedCount };
@@ -135,6 +148,7 @@ export class ChatController {
           'audio/webm',
           'audio/aac',
           'audio/mp4',
+          'audio/flac',
           'application/pdf',
           'application/msword',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -143,7 +157,7 @@ export class ChatController {
         if (allowedMimes.includes(file.mimetype)) {
           callback(null, true);
         } else {
-          callback(new BadRequestException('Invalid file type'), false);
+          callback(new BadRequestException(`Invalid file type: ${file.mimetype}`), false);
         }
       },
     }),
@@ -153,8 +167,11 @@ export class ChatController {
       throw new BadRequestException('File is required');
     }
 
+    // Always return absolute URL for file serving
+    const fileUrl = `http://localhost:3000/uploads/chat/${file.filename}`;
+
     return {
-      url: `/uploads/chat/${file.filename}`,
+      url: fileUrl,
       filename: file.filename,
       originalName: file.originalname,
       mimeType: file.mimetype,

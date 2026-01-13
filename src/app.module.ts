@@ -20,7 +20,8 @@ import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
-  imports: [AuthModule,
+  imports: [
+    AuthModule,
     UserModule,
     ConfigModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URL as string),
@@ -36,7 +37,8 @@ import { RedisModule } from './redis/redis.module';
     SleepModule,
     ReportsModule,
     SeedModule,
-    ChatModule],
+    ChatModule
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
