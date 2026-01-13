@@ -5,6 +5,9 @@ import { Meditation, MeditationDocument } from './schemas/meditation.schema';
 import { Breathwork, BreathworkDocument } from './schemas/breathwork.schema';
 import { Sleep, SleepDocument } from './schemas/sleep.schema';
 import { RecoveryPlan, RecoveryPlanDocument } from './schemas/recovery-plan.schema';
+import { SleepSuggestion } from './schemas/sleep-suggestion.schema';
+import { MeditationSuggestion } from './schemas/meditation-suggestion.schema';
+import { BreathworkSuggestion } from './schemas/breathwork-suggestion.schema';
 import { CreateMeditationDto } from './dto/create-meditation.dto';
 import { CreateBreathworkDto } from './dto/create-breathwork.dto';
 import { CreateSleepDto } from './dto/create-sleep.dto';
@@ -75,6 +78,9 @@ export class MindsetRecoveryService {
         @InjectModel(Breathwork.name) private readonly breathworkModel: Model<BreathworkDocument>,
         @InjectModel(Sleep.name) private readonly sleepModel: Model<SleepDocument>,
         @InjectModel(RecoveryPlan.name) private readonly recoveryPlanModel: Model<RecoveryPlanDocument>,
+        @InjectModel(SleepSuggestion.name) private readonly sleepSuggestionModel: Model<SleepSuggestion>,
+        @InjectModel(MeditationSuggestion.name) private readonly meditationSuggestionModel: Model<MeditationSuggestion>,
+        @InjectModel(BreathworkSuggestion.name) private readonly breathworkSuggestionModel: Model<BreathworkSuggestion>,
         private readonly dailyResetService: DailyResetService,
     ) {}
 
@@ -85,7 +91,11 @@ export class MindsetRecoveryService {
 
     async getMeditations(userId: string, date?: string) {
         const userObjectId = new Types.ObjectId(userId);
-        const query: Record<string, unknown> = { $or: [{ user: userObjectId }, { user: userId }] };
+        const query: Record<string, unknown> = { 
+            $or: [{ user: userObjectId }, { user: userId }],
+            // Filter out AI-pending data - only show user-created or ai-approved
+            source: { $in: ['user-created', 'ai-approved'] }
+        };
         if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
@@ -107,7 +117,11 @@ export class MindsetRecoveryService {
 
     async getBreathworks(userId: string, date?: string) {
         const userObjectId = new Types.ObjectId(userId);
-        const query: Record<string, unknown> = { $or: [{ user: userObjectId }, { user: userId }] };
+        const query: Record<string, unknown> = { 
+            $or: [{ user: userObjectId }, { user: userId }],
+            // Filter out AI-pending data
+            source: { $in: ['user-created', 'ai-approved'] }
+        };
         if (date) {
             const start = new Date(date);
             start.setHours(0, 0, 0, 0);
@@ -135,7 +149,11 @@ export class MindsetRecoveryService {
 
     async getSleeps(userId: string, date?: string) {
         const userObjectId = new Types.ObjectId(userId);
-        const query: Record<string, unknown> = { $or: [{ user: userObjectId }, { user: userId }] };
+        const query: Record<string, unknown> = { 
+            $or: [{ user: userObjectId }, { user: userId }],
+            // Filter out AI-pending data
+            source: { $in: ['user-created', 'ai-approved'] }
+        };
         
         // If querying for today, apply daily reset logic
         if (date) {
@@ -372,4 +390,189 @@ export class MindsetRecoveryService {
             createdAt: new Date(),
         };
     }
+
+    // ==================== AI SUGGESTIONS ADMIN APPROVAL ====================
+
+    /**
+     * Get all pending sleep suggestions for a user
+     */
+    async getSleepSuggestions(userId: string) {
+        const userObjectId = new Types.ObjectId(userId);
+        return this.sleepSuggestionModel.find({ 
+            userId: userObjectId, 
+            status: 'pending' 
+        }).sort({ date: 1 });
+    }
+
+    /**
+     * Admin approves sleep suggestion and creates actual sleep record
+     */
+    async approveSleepSuggestion(suggestionId: string, adminId: string) {
+        const suggestion = await this.sleepSuggestionModel.findById(suggestionId);
+        if (!suggestion) {
+            throw new Error('Suggestion not found');
+        }
+
+        // Create actual sleep record from suggestion
+        const sleepRecord = await this.sleepModel.create({
+            user: suggestion.userId,
+            durationHours: suggestion.durationHours,
+            quality: suggestion.quality,
+            notes: suggestion.notes,
+            date: suggestion.date,
+            status: 'planned',
+            isAiGenerated: true,
+            source: 'ai-approved',
+        });
+
+        // Update suggestion status
+        suggestion.status = 'approved';
+        suggestion.approvedBy = new Types.ObjectId(adminId);
+        suggestion.approvedAt = new Date();
+        await suggestion.save();
+
+        return { sleepRecord, suggestion };
+    }
+
+    /**
+     * Admin approves all sleep suggestions for a user (bulk approve)
+     */
+    async approveAllSleepSuggestions(userId: string, adminId: string) {
+        const suggestions = await this.getSleepSuggestions(userId);
+        const results: any[] = [];
+
+        for (const suggestion of suggestions) {
+            const result = await this.approveSleepSuggestion(suggestion._id.toString(), adminId);
+            results.push(result);
+        }
+
+        return { approved: results.length, records: results };
+    }
+
+    /**
+     * Get all pending meditation suggestions for a user
+     */
+    async getMeditationSuggestions(userId: string) {
+        const userObjectId = new Types.ObjectId(userId);
+        return this.meditationSuggestionModel.find({ 
+            userId: userObjectId, 
+            status: 'pending' 
+        }).sort({ date: 1 });
+    }
+
+    /**
+     * Admin approves meditation suggestion
+     */
+    async approveMeditationSuggestion(suggestionId: string, adminId: string) {
+        const suggestion = await this.meditationSuggestionModel.findById(suggestionId);
+        if (!suggestion) {
+            throw new Error('Suggestion not found');
+        }
+
+        const meditationRecord = await this.meditationModel.create({
+            user: suggestion.userId,
+            durationMinutes: suggestion.durationMinutes,
+            type: suggestion.type,
+            notes: suggestion.notes,
+            date: suggestion.date,
+            status: 'planned',
+            isAiGenerated: true,
+            source: 'ai-approved',
+        });
+
+        suggestion.status = 'approved';
+        suggestion.approvedBy = new Types.ObjectId(adminId);
+        suggestion.approvedAt = new Date();
+        await suggestion.save();
+
+        return { meditationRecord, suggestion };
+    }
+
+    /**
+     * Admin approves all meditation suggestions for a user
+     */
+    async approveAllMeditationSuggestions(userId: string, adminId: string) {
+        const suggestions = await this.getMeditationSuggestions(userId);
+        const results: any[] = [];
+
+        for (const suggestion of suggestions) {
+            const result = await this.approveMeditationSuggestion(suggestion._id.toString(), adminId);
+            results.push(result);
+        }
+
+        return { approved: results.length, records: results };
+    }
+
+    /**
+     * Get all pending breathwork suggestions for a user
+     */
+    async getBreathworkSuggestions(userId: string) {
+        const userObjectId = new Types.ObjectId(userId);
+        return this.breathworkSuggestionModel.find({ 
+            userId: userObjectId, 
+            status: 'pending' 
+        }).sort({ date: 1 });
+    }
+
+    /**
+     * Admin approves breathwork suggestion
+     */
+    async approveBreathworkSuggestion(suggestionId: string, adminId: string) {
+        const suggestion = await this.breathworkSuggestionModel.findById(suggestionId);
+        if (!suggestion) {
+            throw new Error('Suggestion not found');
+        }
+
+        const breathworkRecord = await this.breathworkModel.create({
+            user: suggestion.userId,
+            durationMinutes: suggestion.durationMinutes,
+            technique: suggestion.technique,
+            notes: suggestion.notes,
+            date: suggestion.date,
+            status: 'planned',
+            isAiGenerated: true,
+            source: 'ai-approved',
+        });
+
+        suggestion.status = 'approved';
+        suggestion.approvedBy = new Types.ObjectId(adminId);
+        suggestion.approvedAt = new Date();
+        await suggestion.save();
+
+        return { breathworkRecord, suggestion };
+    }
+
+    /**
+     * Admin approves all breathwork suggestions for a user
+     */
+    async approveAllBreathworkSuggestions(userId: string, adminId: string) {
+        const suggestions = await this.getBreathworkSuggestions(userId);
+        const results: any[] = [];
+
+        for (const suggestion of suggestions) {
+            const result = await this.approveBreathworkSuggestion(suggestion._id.toString(), adminId);
+            results.push(result);
+        }
+
+        return { approved: results.length, records: results };
+    }
+
+    /**
+     * Admin rejects a suggestion
+     */
+    async rejectSuggestion(model: any, suggestionId: string, adminId: string, reason?: string) {
+        const suggestion = await model.findById(suggestionId);
+        if (!suggestion) {
+            throw new Error('Suggestion not found');
+        }
+
+        suggestion.status = 'rejected';
+        suggestion.approvedBy = new Types.ObjectId(adminId);
+        suggestion.rejectedAt = new Date();
+        suggestion.rejectionReason = reason || 'Rejected by admin';
+        await suggestion.save();
+
+        return suggestion;
+    }
 }
+

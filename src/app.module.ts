@@ -16,6 +16,8 @@ import { SleepModule } from './sleep/sleep.module';
 import { ReportsModule } from './reports/reports.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SeedModule } from './seed/seed.module';
+import { ChatModule } from './chat/chat.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [AuthModule,
@@ -23,6 +25,7 @@ import { SeedModule } from './seed/seed.module';
     ConfigModule.forRoot(),
     MongooseModule.forRoot(process.env.MONGODB_URL as string),
     ScheduleModule.forRoot(),
+    RedisModule,
     TrainingModule,
     NutritionModule,
     FastingModule,
@@ -32,7 +35,8 @@ import { SeedModule } from './seed/seed.module';
     AnalyticsModule,
     SleepModule,
     ReportsModule,
-    SeedModule],
+    SeedModule,
+    ChatModule],
   controllers: [AppController],
   providers: [AppService],
 })

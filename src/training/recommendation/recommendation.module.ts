@@ -13,6 +13,9 @@ import { Fasting, FastingSchema } from '../../fasting/schemas/fasting.schema';
 import { Sleep, SleepSchema } from '../../mindset-recovery/schemas/sleep.schema';
 import { Breathwork, BreathworkSchema } from '../../mindset-recovery/schemas/breathwork.schema';
 import { Meditation, MeditationSchema } from '../../mindset-recovery/schemas/meditation.schema';
+import { SleepSuggestion, SleepSuggestionSchema } from '../../mindset-recovery/schemas/sleep-suggestion.schema';
+import { MeditationSuggestion, MeditationSuggestionSchema } from '../../mindset-recovery/schemas/meditation-suggestion.schema';
+import { BreathworkSuggestion, BreathworkSuggestionSchema } from '../../mindset-recovery/schemas/breathwork-suggestion.schema';
 import { RecoveryPlan, RecoveryPlanSchema } from '../../mindset-recovery/schemas/recovery-plan.schema';
 import { Meal, MealSchema } from '../../nutrition/meal/schemas/meal.schema';
 import { WorkoutBlock, WorkoutBlockSchema } from '../workout/schemas/workout-block.schema';
@@ -30,6 +33,9 @@ import { WorkoutSet, WorkoutSetSchema } from '../workout/schemas/workout-set.sch
       { name: Sleep.name, schema: SleepSchema },
       { name: Breathwork.name, schema: BreathworkSchema },
       { name: Meditation.name, schema: MeditationSchema },
+      { name: SleepSuggestion.name, schema: SleepSuggestionSchema },
+      { name: MeditationSuggestion.name, schema: MeditationSuggestionSchema },
+      { name: BreathworkSuggestion.name, schema: BreathworkSuggestionSchema },
       { name: RecoveryPlan.name, schema: RecoveryPlanSchema },
       { name: Meal.name, schema: MealSchema },
       { name: WorkoutBlock.name, schema: WorkoutBlockSchema },

@@ -22,6 +22,10 @@ export class Meditation {
 
   @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
   status: string;
-}
+  @Prop({ default: false })
+  isAiGenerated: boolean;
+
+  @Prop({ enum: ['user-created', 'ai-approved', 'ai-pending'], default: 'user-created' })
+  source: string;}
 
 export const MeditationSchema = SchemaFactory.createForClass(Meditation);

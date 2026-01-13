@@ -25,7 +25,18 @@ async function bootstrap() {
     optionsSuccessStatus: 200,
   });
 
-  app.useGlobalPipes(new ValidationPipe());
+  // Enable global validation pipe with transformation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // Enable type transformation
+      transformOptions: {
+        enableImplicitConversion: true, // Auto-convert types
+      },
+      whitelist: true, // Strip unknown properties
+      forbidNonWhitelisted: false, // Don't throw on unknown properties
+    }),
+  );
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

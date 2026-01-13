@@ -42,6 +42,12 @@ export class Meal {
 
   @Prop()
   notes?: string;
+
+  @Prop({ default: false })
+  isAiGenerated: boolean;
+
+  @Prop({ enum: ['user-created', 'ai-approved', 'ai-pending'], default: 'user-created' })
+  source: string;
 }
 
 export const MealSchema = SchemaFactory.createForClass(Meal);

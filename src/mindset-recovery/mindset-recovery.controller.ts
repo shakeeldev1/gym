@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Request, UseGuards, Param } from '@nestjs/common';
 import { MindsetRecoveryService } from './mindset-recovery.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { CreateMeditationDto } from './dto/create-meditation.dto';
@@ -84,5 +84,70 @@ export class MindsetRecoveryController {
     @Get('my-recovery-plan')
     async getMyRecoveryPlan(@Request() req) {
         return this.mindsetRecoveryService.getAIRecoveryPlan(req.user.id);
+    }
+
+    // ==================== AI SUGGESTIONS ENDPOINTS ====================
+
+    @UseGuards(AuthGuard)
+    @Get('suggestions/sleep/:userId')
+    async getSleepSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.getSleepSuggestions(userId);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/sleep/:id/approve')
+    async approveSleepSuggestion(@Request() req, @Param('id') suggestionId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveSleepSuggestion(suggestionId, req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/sleep/approve-all/:userId')
+    async approveAllSleepSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveAllSleepSuggestions(userId, req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('suggestions/meditation/:userId')
+    async getMeditationSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.getMeditationSuggestions(userId);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/meditation/:id/approve')
+    async approveMeditationSuggestion(@Request() req, @Param('id') suggestionId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveMeditationSuggestion(suggestionId, req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/meditation/approve-all/:userId')
+    async approveAllMeditationSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveAllMeditationSuggestions(userId, req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Get('suggestions/breathwork/:userId')
+    async getBreathworkSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.getBreathworkSuggestions(userId);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/breathwork/:id/approve')
+    async approveBreathworkSuggestion(@Request() req, @Param('id') suggestionId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveBreathworkSuggestion(suggestionId, req.user.id);
+    }
+
+    @UseGuards(AuthGuard)
+    @Post('suggestions/breathwork/approve-all/:userId')
+    async approveAllBreathworkSuggestions(@Request() req, @Param('userId') userId: string) {
+        // TODO: Add admin role check
+        return this.mindsetRecoveryService.approveAllBreathworkSuggestions(userId, req.user.id);
     }
 }

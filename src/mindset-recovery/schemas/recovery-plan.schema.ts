@@ -32,6 +32,12 @@ export class RecoveryPlan {
 
   @Prop({ type: Date })
   endDate?: Date;
+
+  @Prop({ default: false })
+  isAiGenerated: boolean;
+
+  @Prop({ enum: ['user-created', 'ai-approved', 'ai-pending'], default: 'user-created' })
+  source: string;
 }
 
 export const RecoveryPlanSchema = SchemaFactory.createForClass(RecoveryPlan);

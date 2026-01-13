@@ -1,11 +1,41 @@
 import { Injectable } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 /**
  * Service to handle daily reset logic for recurring tasks
- * This ensures that tasks reset each day so users can perform them again
+ * This ensures that tasks reset each day at midnight (00:00)
+ * Includes automatic cron job to reset all modules daily
  */
 @Injectable()
 export class DailyResetService {
+  private resetCallbacks: Array<() => Promise<void>> = [];
+
+  /**
+   * Register a callback to be executed at midnight
+   */
+  registerResetCallback(callback: () => Promise<void>) {
+    this.resetCallbacks.push(callback);
+  }
+
+  /**
+   * Cron job that runs every day at midnight (00:00)
+   * Triggers all registered reset callbacks
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async handleDailyReset() {
+    console.log(`🕛 Daily Reset triggered at ${new Date().toISOString()}`);
+    
+    for (const callback of this.resetCallbacks) {
+      try {
+        await callback();
+      } catch (error) {
+        console.error('❌ Error in daily reset callback:', error);
+      }
+    }
+    
+    console.log(`✅ Daily Reset completed for ${this.resetCallbacks.length} modules`);
+  }
+
   /**
    * Check if a date is today
    */
@@ -95,5 +125,15 @@ export class DailyResetService {
     const diffTime = Math.abs(today.getTime() - providedDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  }
+
+  /**
+   * Get milliseconds until next midnight
+   */
+  getMillisecondsUntilMidnight(): number {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    return midnight.getTime() - now.getTime();
   }
 }

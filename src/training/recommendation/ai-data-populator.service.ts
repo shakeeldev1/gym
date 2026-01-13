@@ -4,6 +4,9 @@ import { Model, Types } from 'mongoose';
 import { Sleep } from '../../mindset-recovery/schemas/sleep.schema';
 import { Breathwork } from '../../mindset-recovery/schemas/breathwork.schema';
 import { Meditation } from '../../mindset-recovery/schemas/meditation.schema';
+import { SleepSuggestion } from '../../mindset-recovery/schemas/sleep-suggestion.schema';
+import { MeditationSuggestion } from '../../mindset-recovery/schemas/meditation-suggestion.schema';
+import { BreathworkSuggestion } from '../../mindset-recovery/schemas/breathwork-suggestion.schema';
 import { Meal } from '../../nutrition/meal/schemas/meal.schema';
 import { RecoveryPlan } from '../../mindset-recovery/schemas/recovery-plan.schema';
 import { MealType } from '../../nutrition/meal/enum/meal-type.enum';
@@ -16,13 +19,9 @@ import { UserProfile } from '../../user/schemas/userProfile.schema';
 /**
  * AIDataPopulatorService
  * 
- * This service takes AI-generated recommendations and populates the actual data schemas
- * (Sleep, Breathwork, Meditation, Meal records) with real entries based on:
- * - Sleep hours from profile and AI recommendations
- * - Meditation suggestions from recovery plan
- * - Breathwork suggestions from recovery plan
- * - Meal plans from nutrition plan
- * - Recovery plan details
+ * This service takes AI-generated recommendations and creates SUGGESTIONS (not actual records)
+ * that require admin approval before being converted to actual data entries.
+ * Creates 21-day plans for all wellness activities.
  */
 @Injectable()
 export class AIDataPopulatorService {
@@ -30,6 +29,9 @@ export class AIDataPopulatorService {
     @InjectModel(Sleep.name) private sleepModel: Model<Sleep>,
     @InjectModel(Breathwork.name) private breathworkModel: Model<Breathwork>,
     @InjectModel(Meditation.name) private meditationModel: Model<Meditation>,
+    @InjectModel(SleepSuggestion.name) private sleepSuggestionModel: Model<SleepSuggestion>,
+    @InjectModel(MeditationSuggestion.name) private meditationSuggestionModel: Model<MeditationSuggestion>,
+    @InjectModel(BreathworkSuggestion.name) private breathworkSuggestionModel: Model<BreathworkSuggestion>,
     @InjectModel(Meal.name) private mealModel: Model<Meal>,
     @InjectModel(RecoveryPlan.name) private recoveryPlanModel: Model<RecoveryPlan>,
     @InjectModel(NutritionGoal.name) private nutritionGoalModel: Model<NutritionGoal>,
@@ -52,26 +54,26 @@ export class AIDataPopulatorService {
     try {
       // 1. Populate Sleep data from AI sleep plan
       if (aiProgram.sleepPlan) {
-        await this.populateSleepData(userObjectId, aiProgram.sleepPlan, userProfile);
-        populated.push('sleep');
+        await this.populateSleepSuggestions(userObjectId, aiProgram.sleepPlan, userProfile);
+        populated.push('sleep-suggestions');
       }
 
-      // 2. Populate Recovery Plan (includes recovery insights)
+      // 2. Populate Recovery Plan (includes recovery insights) - as suggestion
       if (aiProgram.recoveryPlan) {
-        await this.populateRecoveryPlan(userObjectId, aiProgram.recoveryPlan);
-        populated.push('recovery');
+        await this.populateRecoveryPlanSuggestion(userObjectId, aiProgram.recoveryPlan);
+        populated.push('recovery-suggestion');
       }
 
-      // 3. Populate Meditation data from recovery plan
+      // 3. Populate Meditation data from recovery plan - as suggestions
       if (aiProgram.recoveryPlan?.stressManagement) {
-        await this.populateMeditationData(userObjectId, aiProgram.recoveryPlan);
-        populated.push('meditation');
+        await this.populateMeditationSuggestions(userObjectId, aiProgram.recoveryPlan);
+        populated.push('meditation-suggestions');
       }
 
-      // 4. Populate Breathwork data from recovery plan
+      // 4. Populate Breathwork data from recovery plan - as suggestions
       if (aiProgram.recoveryPlan?.stressManagement) {
-        await this.populateBreathworkData(userObjectId, aiProgram.recoveryPlan);
-        populated.push('breathwork');
+        await this.populateBreathworkSuggestions(userObjectId, aiProgram.recoveryPlan);
+        populated.push('breathwork-suggestions');
       }
 
       // 5. Populate Meal data from nutrition plan
@@ -101,10 +103,10 @@ export class AIDataPopulatorService {
   }
 
   /**
-   * Populate initial sleep records based on profile sleep hours
-   * Creates sleep records for the next 7 days based on AI recommendations
+   * Create sleep SUGGESTIONS (not actual records) for 21 days
+   * These require admin approval before becoming actual sleep records
    */
-  private async populateSleepData(
+  private async populateSleepSuggestions(
     userId: Types.ObjectId,
     sleepPlan: any,
     userProfile: any,
@@ -113,123 +115,133 @@ export class AIDataPopulatorService {
       sleepPlan.targetHours || userProfile?.sleepHoursPerNight || '7-9'
     );
     const quality = 4; // Default quality score (1-5)
-    const notes = `AI Recommended: ${sleepPlan.targetHours}hrs. Pre-sleep: ${sleepPlan.preSleepRoutine}. Wake routine: ${sleepPlan.wakeRoutine}`;
+    const reason = `AI recommends ${sleepPlan.targetHours}hrs sleep based on your profile. Pre-sleep routine: ${sleepPlan.preSleepRoutine}. Wake routine: ${sleepPlan.wakeRoutine}`;
 
-    // Create sleep records for next 7 days
-    const sleepRecords: any[] = [];
-    for (let i = 0; i < 7; i++) {
+    // Create sleep SUGGESTIONS for next 21 days
+    const sleepSuggestions: any[] = [];
+    for (let i = 0; i < 21; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
       date.setHours(0, 0, 0, 0);
 
-      sleepRecords.push({
-        user: userId,
+      sleepSuggestions.push({
+        userId,
         durationHours: targetHours,
         quality,
         date,
-        notes: `Day ${i + 1}: ${notes}`,
-        status: 'planned',
+        notes: `Day ${i + 1} of 21-day AI sleep plan`,
+        reason,
+        aiGenerated: true,
+        status: 'pending', // Requires admin approval
       } as any);
     }
 
-    if (sleepRecords.length > 0) {
-      await this.sleepModel.insertMany(sleepRecords);
-      console.log(`✅ Created ${sleepRecords.length} sleep records for user ${userId}`);
+    if (sleepSuggestions.length > 0) {
+      await this.sleepSuggestionModel.insertMany(sleepSuggestions);
+      console.log(`✅ Created ${sleepSuggestions.length} sleep SUGGESTIONS (pending approval) for user ${userId}`);
     }
   }
 
   /**
-   * Create recovery plan with AI suggestions
+   * Create recovery plan as AI-generated with pending approval status
    */
-  private async populateRecoveryPlan(
+  private async populateRecoveryPlanSuggestion(
     userId: Types.ObjectId,
     recoveryPlan: any,
   ): Promise<void> {
     const plan = {
       user: userId,
-      isActive: true,
+      isActive: false, // Not active until admin approves
       startDate: new Date(),
-      endDate: new Date(Date.now() + 8 * 7 * 24 * 60 * 60 * 1000), // 8 weeks
+      endDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // 21 days
       restDaysPerWeek: recoveryPlan.restDaysPerWeek || 1,
       mobilityMinutesPerDay: recoveryPlan.mobilityMinutesPerDay || 10,
       stressManagement: recoveryPlan.stressManagement,
       hydration: recoveryPlan.hydration,
-      notes: recoveryPlan.notes || 'AI-generated recovery plan',
+      notes: 'AI-generated 21-day recovery plan - pending admin approval',
+      isAiGenerated: true,
+      source: 'ai-pending',
     };
 
     await this.recoveryPlanModel.create(plan);
-    console.log(`✅ Created recovery plan for user ${userId}`);
+    console.log(`✅ Created recovery plan SUGGESTION (pending approval) for user ${userId}`);
   }
 
   /**
-   * Populate meditation records based on stress management recommendations
+   * Create meditation SUGGESTIONS for 21 days (pending admin approval)
    */
-  private async populateMeditationData(
+  private async populateMeditationSuggestions(
     userId: Types.ObjectId,
     recoveryPlan: any,
   ): Promise<void> {
-    const meditationRecords: any[] = [];
+    const meditationSuggestions: any[] = [];
     const stressManagement = recoveryPlan.stressManagement || '';
     
     // Extract meditation recommendations
-    const meditationDuration = this.extractDurationFromText(stressManagement, 5);
+    const meditationDuration = this.extractDurationFromText(stressManagement, 10);
     const meditationType = this.extractMeditationType(stressManagement);
+    const reason = `AI recommends daily meditation for stress management: ${stressManagement}`;
 
-    // Create meditation records for next 7 days (daily practice)
-    for (let i = 0; i < 7; i++) {
+    // Create meditation SUGGESTIONS for next 21 days
+    for (let i = 0; i < 21; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
-      date.setHours(Math.floor(Math.random() * 6) + 6, Math.floor(Math.random() * 60), 0, 0); // Random morning time
+      date.setHours(Math.floor(Math.random() * 6) + 6, Math.floor(Math.random() * 60), 0, 0);
 
-      meditationRecords.push({
-        user: userId,
+      meditationSuggestions.push({
+        userId,
         durationMinutes: meditationDuration,
         type: meditationType,
         date,
-        notes: `AI Recommendation: ${recoveryPlan.stressManagement}`,
-        status: 'planned',
+        notes: `Day ${i + 1} of 21-day AI meditation plan`,
+        reason,
+        aiGenerated: true,
+        status: 'pending',
       } as any);
     }
 
-    if (meditationRecords.length > 0) {
-      await this.meditationModel.insertMany(meditationRecords);
-      console.log(`✅ Created ${meditationRecords.length} meditation records for user ${userId}`);
+    if (meditationSuggestions.length > 0) {
+      await this.meditationSuggestionModel.insertMany(meditationSuggestions);
+      console.log(`✅ Created ${meditationSuggestions.length} meditation SUGGESTIONS (pending approval) for user ${userId}`);
     }
   }
 
   /**
-   * Populate breathwork records based on stress management recommendations
+   * Create breathwork SUGGESTIONS for 21 days (pending admin approval)
    */
-  private async populateBreathworkData(
+  private async populateBreathworkSuggestions(
     userId: Types.ObjectId,
     recoveryPlan: any,
   ): Promise<void> {
-    const breathworkRecords: any[] = [];
+    const breathworkSuggestions: any[] = [];
     const stressManagement = recoveryPlan.stressManagement || '';
     
     // Extract breathwork recommendations
     const breathworkDuration = this.extractDurationFromText(stressManagement, 5);
     const breathworkType = this.extractBreathworkType(stressManagement);
+    const reason = `AI recommends daily breathwork for stress relief: ${stressManagement}`;
 
-    // Create breathwork records for next 7 days
-    for (let i = 0; i < 7; i++) {
+    // Create breathwork SUGGESTIONS for next 21 days
+    for (let i = 0; i < 21; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
-      date.setHours(20 + (i % 2), Math.floor(Math.random() * 60), 0, 0); // Evening time
+      date.setHours(20 + (i % 2), Math.floor(Math.random() * 60), 0, 0);
 
-      breathworkRecords.push({
-        user: userId,
+      breathworkSuggestions.push({
+        userId,
         durationMinutes: breathworkDuration,
-        type: breathworkType,
+        technique: breathworkType,
         date,
-        notes: `AI Recommendation for stress management: ${recoveryPlan.stressManagement}`,
-        status: 'planned',
+        notes: `Day ${i + 1} of 21-day AI breathwork plan`,
+        reason,
+        aiGenerated: true,
+        status: 'pending',
       } as any);
     }
 
-    if (breathworkRecords.length > 0) {
-      await this.breathworkModel.insertMany(breathworkRecords);
-      console.log(`✅ Created ${breathworkRecords.length} breathwork records for user ${userId}`);
+    if (breathworkSuggestions.length > 0) {
+      await this.breathworkSuggestionModel.insertMany(breathworkSuggestions);
+      console.log(`✅ Created ${breathworkSuggestions.length} breathwork SUGGESTIONS (pending approval) for user ${userId}`);
     }
   }
 
