@@ -254,6 +254,8 @@ export class ChatService {
   // ==================== CONVERSATION OPERATIONS ====================
 
   async findOrCreateConversation(user1: Types.ObjectId, user2: Types.ObjectId) {
+    console.log('🔍 Finding or creating conversation between:', user1.toString(), 'and', user2.toString());
+    
     // Check if conversation exists
     let conversation = await this.conversationModel.findOne({
       participants: { $all: [user1, user2], $size: 2 },
@@ -261,6 +263,7 @@ export class ChatService {
 
     if (!conversation) {
       // Create new conversation
+      console.log('✨ Creating NEW conversation');
       conversation = new this.conversationModel({
         participants: [user1, user2],
         unreadCount: new Map(),
@@ -269,6 +272,9 @@ export class ChatService {
         isBlocked: new Map(),
       });
       await conversation.save();
+      console.log('✅ Conversation created with ID:', conversation._id.toString());
+    } else {
+      console.log('✅ Found existing conversation with ID:', conversation._id.toString());
     }
 
     return conversation;
@@ -277,7 +283,7 @@ export class ChatService {
   async getConversation(conversationId: string) {
     const conversation = await this.conversationModel
       .findById(conversationId)
-      .populate('participants', '_id name email role')
+      .populate('participants', '_id fName lName email role')
       .populate('lastMessage')
       .exec();
 
@@ -285,7 +291,32 @@ export class ChatService {
       throw new NotFoundException('Conversation not found');
     }
 
-    return conversation;
+    // Format participants with full name
+    const formattedConversation = {
+      ...conversation.toObject(),
+      participants: (conversation.participants as any[]).map(p => ({
+        _id: p._id,
+        email: p.email,
+        role: p.role,
+        name: p.fName && p.lName ? `${p.fName} ${p.lName}` : p.email,
+        fName: p.fName,
+        lName: p.lName,
+      })),
+    };
+
+    console.log('✅ Formatted conversation:', {
+      id: conversationId,
+      participantCount: formattedConversation.participants?.length,
+      participants: formattedConversation.participants?.map(p => ({ 
+        id: p._id, 
+        name: p.name, 
+        fName: p.fName, 
+        lName: p.lName, 
+        email: p.email 
+      })),
+    });
+
+    return formattedConversation;
   }
 
   async getUserConversations(userId: string) {
@@ -313,6 +344,16 @@ export class ChatService {
       .exec();
 
     console.log('✅ Found', conversations.length, 'conversations for user:', userId);
+    
+    // Debug: Check participant population
+    conversations.forEach((conv, idx) => {
+      console.log(`📋 Conversation ${idx + 1}:`, {
+        id: conv._id,
+        participantIds: conv.participants.map((p: any) => p?._id || 'null'),
+        participantRoles: conv.participants.map((p: any) => p?.role || 'missing'),
+        participantEmails: conv.participants.map((p: any) => p?.email || 'missing'),
+      });
+    });
 
     // Transform unreadCount Map to object and add user-specific unread count
     return conversations.map(conv => {

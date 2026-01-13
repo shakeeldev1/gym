@@ -181,6 +181,7 @@ export class ChatController {
 
   // ==================== CONVERSATION ENDPOINTS ====================
 
+  @UseGuards(AuthGuard)
   @Get('conversations')
   async getUserConversations(@Request() req) {
     console.log('📥 GET /chat/conversations called for user:', req.user.id);
