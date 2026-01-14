@@ -279,4 +279,53 @@ export class UserService {
         const { password, otp, resetOtp, resetOtpExpire, otpExpire, ...safeUser } = user.toObject();
         return { message: 'User role updated successfully', user: safeUser };
     }
+
+    async getAdminsAndCoaches() {
+        try {
+            const adminsAndCoaches = await this.userModel.aggregate([
+                {
+                    $match: {
+                        role: { $in: ['admin', 'coach'] }
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'userprofiles',
+                        localField: '_id',
+                        foreignField: 'userId',
+                        as: 'profile'
+                    }
+                },
+                {
+                    $unwind: {
+                        path: '$profile',
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        fName: 1,
+                        lName: 1,
+                        email: 1,
+                        role: 1,
+                        phone: '$profile.phone',
+                        image: '$profile.image',
+                        createdAt: 1
+                    }
+                },
+                {
+                    $sort: { role: -1, fName: 1 }
+                }
+            ]);
+
+            return {
+                message: 'Admins and coaches retrieved successfully',
+                data: adminsAndCoaches,
+                total: adminsAndCoaches.length
+            };
+        } catch (error) {
+            throw error;
+        }
+    }
 }

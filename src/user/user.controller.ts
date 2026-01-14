@@ -33,6 +33,11 @@ export class UserController {
         return this.userService.getAllUsers(role);
     }
 
+    @Get('admins-coaches')
+    async getAdminsAndCoaches() {
+        return this.userService.getAdminsAndCoaches();
+    }
+
     @UseGuards(AuthGuard)
     @Delete(':id')
     async deleteUser(@Param('id') userId: string) {
