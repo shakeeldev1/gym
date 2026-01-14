@@ -115,8 +115,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.join(`community:${community._id}`);
       });
 
-      // Notify user is online
+      // Notify user is online to all connected clients
       this.server.emit('user:online', { userId });
+      this.logger.log(`📢 Broadcasted online status for user ${userId}`);
       
       // Deliver queued messages to coming-online user
       const queuedData = await this.chatService.getQueuedMessages(userId);
@@ -169,7 +170,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // Mark user as offline in Redis
       await this.redisService.setUserOffline(userId);
       this.server.emit('user:offline', { userId });
-      this.logger.log(`❌ User ${userId} disconnected`);
+      this.logger.log(`❌ User ${userId} disconnected and marked offline`);
     }
   }
 
@@ -303,6 +304,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return { success: true };
     } catch (error) {
       this.logger.error('Join conversation error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  @SubscribeMessage('join:community')
+  handleJoinCommunity(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { communityId: string },
+  ) {
+    try {
+      const userId = client.data.userId;
+      const communityId = data.communityId;
+      
+      // Join the community room
+      client.join(`community:${communityId}`);
+      this.logger.log(`👥 User ${userId} joined community room: community:${communityId}`);
+      
+      return { success: true };
+    } catch (error) {
+      this.logger.error('Join community error:', error);
       return { success: false, error: error.message };
     }
   }

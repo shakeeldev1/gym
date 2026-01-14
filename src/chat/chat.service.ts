@@ -131,8 +131,8 @@ export class ChatService {
 
     // Fetch the saved message fresh from DB and populate all references
     const savedMessage = await this.messageModel.findById(message._id).populate([
-      { path: 'sender', select: '_id name email role' },
-      { path: 'recipient', select: '_id name email role' },
+      { path: 'sender', select: '_id fName lName name email role' },
+      { path: 'recipient', select: '_id fName lName name email role' },
       { path: 'replyTo' },
     ]);
 
@@ -168,15 +168,15 @@ export class ChatService {
       .skip(skip)
       .populate({
         path: 'sender',
-        select: '_id name email role',
+        select: '_id fName lName name email role',
       })
       .populate({
         path: 'recipient',
-        select: '_id name email role',
+        select: '_id fName lName name email role',
       })
       .populate({
         path: 'replyTo',
-        populate: { path: 'sender', select: '_id name' },
+        populate: { path: 'sender', select: '_id fName lName name' },
       })
       .exec();
 
@@ -184,7 +184,10 @@ export class ChatService {
   }
 
   async getMessage(messageId: string) {
-    return this.messageModel.findById(messageId).populate(['sender', 'recipient']).exec();
+    return this.messageModel.findById(messageId).populate([
+      { path: 'sender', select: '_id fName lName name email role' },
+      { path: 'recipient', select: '_id fName lName name email role' },
+    ]).exec();
   }
 
   async markAsRead(userId: string, dto: MarkAsReadDto) {
@@ -559,7 +562,12 @@ export class ChatService {
   async getCommunity(communityId: string) {
     return this.communityModel
       .findById(communityId)
-      .populate(['createdBy', 'admins', 'members', 'lastMessage'])
+      .populate([
+        { path: 'createdBy', select: '_id fName lName name email' },
+        { path: 'admins', select: '_id fName lName name email' },
+        { path: 'members', select: '_id fName lName name email role' },
+        { path: 'lastMessage', populate: { path: 'sender', select: '_id fName lName name' } },
+      ])
       .exec();
   }
 
@@ -571,7 +579,10 @@ export class ChatService {
         members: userObjectId,
         isActive: true,
       })
-      .populate(['createdBy', 'lastMessage'])
+      .populate([
+        { path: 'createdBy', select: '_id fName lName name email' },
+        { path: 'lastMessage', populate: { path: 'sender', select: '_id fName lName name' } },
+      ])
       .sort({ lastMessageAt: -1 })
       .exec();
   }

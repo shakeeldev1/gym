@@ -14,11 +14,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { AuthGuard } from '../auth/auth.guard';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { CloudinaryService } from '../common/cloudinary.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { CreateCommunityDto, UpdateCommunityDto, AddMembersDto } from './dto/community.dto';
 import { GetMessagesDto, MarkAsReadDto } from './dto/message-query.dto';
@@ -29,6 +28,7 @@ export class ChatController {
   constructor(
     private readonly chatService: ChatService,
     private readonly chatGateway: ChatGateway,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   // ==================== MESSAGE ENDPOINTS ====================
@@ -124,24 +124,31 @@ export class ChatController {
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/chat',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          callback(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-        },
-      }),
       limits: {
         fileSize: 50 * 1024 * 1024, // 50MB limit
       },
       fileFilter: (req, file, callback) => {
-        // Allow images, audio, and documents
+        // Allow images, videos, audio, and documents
         const allowedMimes = [
+          // Images
           'image/jpeg',
           'image/png',
           'image/gif',
           'image/webp',
+          'image/jpg',
+          'image/bmp',
+          'image/svg+xml',
+          // Videos
+          'video/mp4',
+          'video/mpeg',
+          'video/quicktime',
+          'video/x-msvideo',
+          'video/x-ms-wmv',
+          'video/webm',
+          'video/ogg',
+          'video/3gpp',
+          'video/x-flv',
+          // Audio
           'audio/mpeg',
           'audio/wav',
           'audio/ogg',
@@ -149,15 +156,23 @@ export class ChatController {
           'audio/aac',
           'audio/mp4',
           'audio/flac',
+          'audio/x-m4a',
+          // Documents
           'application/pdf',
           'application/msword',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'text/plain',
         ];
 
         if (allowedMimes.includes(file.mimetype)) {
           callback(null, true);
         } else {
-          callback(new BadRequestException(`Invalid file type: ${file.mimetype}`), false);
+          console.error(`❌ Rejected file type: ${file.mimetype}`);
+          callback(new BadRequestException(`Invalid file type: ${file.mimetype}. Allowed types: images, videos, audio, and documents.`), false);
         }
       },
     }),
@@ -167,16 +182,29 @@ export class ChatController {
       throw new BadRequestException('File is required');
     }
 
-    // Always return absolute URL for file serving
-    const fileUrl = `http://localhost:3000/uploads/chat/${file.filename}`;
+    try {
+      console.log('📤 Uploading file to Cloudinary:', {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      });
 
-    return {
-      url: fileUrl,
-      filename: file.filename,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
-    };
+      // Upload to Cloudinary
+      const result = await this.cloudinaryService.uploadFile(file, 'chat');
+
+      return {
+        url: result.url,
+        publicId: result.publicId,
+        filename: file.originalname,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        format: result.format,
+      };
+    } catch (error) {
+      console.error('❌ File upload failed:', error);
+      throw new BadRequestException('Failed to upload file');
+    }
   }
 
   // ==================== CONVERSATION ENDPOINTS ====================

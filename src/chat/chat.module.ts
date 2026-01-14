@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { MulterModule } from '@nestjs/platform-express';
+import { ConfigModule } from '@nestjs/config';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { CloudinaryService } from '../common/cloudinary.service';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { Conversation, ConversationSchema } from './schemas/conversation.schema';
 import { Community, CommunitySchema } from './schemas/community.schema';
@@ -16,13 +17,11 @@ import { RedisModule } from '../redis/redis.module';
       { name: Conversation.name, schema: ConversationSchema },
       { name: Community.name, schema: CommunitySchema },
     ]),
-    MulterModule.register({
-      dest: './uploads/chat',
-    }),
+    ConfigModule,
     RedisModule,
   ],
   controllers: [ChatController],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService, ChatGateway, CloudinaryService],
   exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}

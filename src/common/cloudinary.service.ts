@@ -25,12 +25,33 @@ export class CloudinaryService {
       const uploadOptions: any = {
         folder: `thrive/${folder}`,
         resource_type: 'auto', // Automatically detect file type (image, video, audio, etc.)
+        chunk_size: 6000000, // 6MB chunks for large files
       };
 
-      // For audio files, specify audio resource type
+      // For audio files, specify video resource type (Cloudinary convention)
       if (file.mimetype.startsWith('audio/')) {
-        uploadOptions.resource_type = 'video'; // Cloudinary stores audio as video
+        uploadOptions.resource_type = 'video';
       }
+
+      // For video files, ensure proper resource type
+      if (file.mimetype.startsWith('video/')) {
+        uploadOptions.resource_type = 'video';
+        uploadOptions.quality = 'auto'; // Optimize video quality
+      }
+
+      // For images, optimize
+      if (file.mimetype.startsWith('image/')) {
+        uploadOptions.resource_type = 'image';
+        uploadOptions.quality = 'auto';
+        uploadOptions.fetch_format = 'auto';
+      }
+
+      console.log('📤 Uploading to Cloudinary with options:', {
+        folder: uploadOptions.folder,
+        resourceType: uploadOptions.resource_type,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+      });
 
       const uploadStream = cloudinary.uploader.upload_stream(
         uploadOptions,
@@ -38,7 +59,7 @@ export class CloudinaryService {
           if (error) {
             console.error('❌ Cloudinary upload error:', error);
             reject(error);
-          } else {
+          } else if (result) {
             console.log('✅ File uploaded to Cloudinary:', result.secure_url);
             resolve({
               url: result.secure_url,
@@ -46,6 +67,8 @@ export class CloudinaryService {
               format: result.format,
               resourceType: result.resource_type,
             });
+          } else {
+            reject(new Error('Upload failed: No result returned'));
           }
         },
       );
