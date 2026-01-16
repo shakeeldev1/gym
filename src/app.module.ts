@@ -18,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { SeedModule } from './seed/seed.module';
 import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
+import { WellnessRecipesModule } from './recipes/recipes.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { RedisModule } from './redis/redis.module';
     SleepModule,
     ReportsModule,
     SeedModule,
-    ChatModule
+    ChatModule,
+    WellnessRecipesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

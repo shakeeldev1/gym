@@ -83,7 +83,7 @@ export class AuthService {
         user.otpExpire = null;
         await user.save();
 
-        const token = await this.jwtService.signAsync({ id: user._id });
+        const token = await this.jwtService.signAsync({ id: user._id, role: user.role });
 
         return {
             success: true,
@@ -106,7 +106,7 @@ export class AuthService {
         if (!isPasswordValid) {
             throw new UnauthorizedException("Invalid credentials");
         }
-        const payload = { id: user._id };
+        const payload = { id: user._id, role: user.role };
         const token = await this.jwtService.signAsync(payload);
         return token;
     }
@@ -157,7 +157,7 @@ export class AuthService {
             await (user as any).save();
         }
 
-        const token = await this.jwtService.signAsync({ id: (user as any)._id });
+        const token = await this.jwtService.signAsync({ id: (user as any)._id, role: (user as any).role });
         return { token, user };
     }
 
@@ -198,7 +198,7 @@ export class AuthService {
     }
 
     async createJwtForUser(user: any) {
-        return this.jwtService.signAsync({ id: (user as any)._id });
+        return this.jwtService.signAsync({ id: (user as any)._id, role: (user as any).role });
     }
 
     async facebookLogin(accessToken: string) {
@@ -248,7 +248,7 @@ export class AuthService {
                 await (user as any).save();
             }
 
-            const token = await this.jwtService.signAsync({ id: (user as any)._id });
+            const token = await this.jwtService.signAsync({ id: (user as any)._id, role: (user as any).role });
             return { token, user };
         } catch (error) {
             throw new UnauthorizedException('Failed to verify Facebook access token');
