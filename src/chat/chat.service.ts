@@ -449,6 +449,16 @@ export class ChatService {
     return community.populate(['createdBy', 'admins', 'members']);
   }
 
+  // Helper method to check if user is admin or coach
+  private async isAdminOrCoach(userId: string, userModel: any): Promise<boolean> {
+    try {
+      const user = await userModel.findById(userId);
+      return user && (user.role === 'admin' || user.role === 'coach');
+    } catch {
+      return false;
+    }
+  }
+
   async updateCommunity(userId: string, communityId: string, dto: UpdateCommunityDto) {
     const community = await this.communityModel.findById(communityId);
     
@@ -456,9 +466,9 @@ export class ChatService {
       throw new NotFoundException('Community not found');
     }
 
-    // Check if user is admin
+    // Check if user is admin of community
     if (!community.admins.some(admin => admin.toString() === userId)) {
-      throw new ForbiddenException('Only admins can update community');
+      throw new ForbiddenException('Only community admins can update community');
     }
 
     Object.assign(community, dto);
@@ -498,9 +508,9 @@ export class ChatService {
       throw new NotFoundException('Community not found');
     }
 
-    // Check if user is admin
+    // Check if user is admin of the community
     if (!community.admins.some(admin => admin.toString() === userId)) {
-      throw new ForbiddenException('Only admins can remove members');
+      throw new ForbiddenException('Only community admins can remove members');
     }
 
     // Cannot remove creator
@@ -563,8 +573,8 @@ export class ChatService {
     return this.communityModel
       .findById(communityId)
       .populate([
-        { path: 'createdBy', select: '_id fName lName name email' },
-        { path: 'admins', select: '_id fName lName name email' },
+        { path: 'createdBy', select: '_id fName lName name email role' },
+        { path: 'admins', select: '_id fName lName name email role' },
         { path: 'members', select: '_id fName lName name email role' },
         { path: 'lastMessage', populate: { path: 'sender', select: '_id fName lName name' } },
       ])
@@ -580,7 +590,7 @@ export class ChatService {
         isActive: true,
       })
       .populate([
-        { path: 'createdBy', select: '_id fName lName name email' },
+        { path: 'createdBy', select: '_id fName lName name email role' },
         { path: 'lastMessage', populate: { path: 'sender', select: '_id fName lName name' } },
       ])
       .sort({ lastMessageAt: -1 })
@@ -615,6 +625,137 @@ export class ChatService {
 
     dto.isBroadcast = true;
     return this.sendMessage(senderId, dto);
+  }
+
+  /**
+   * Send broadcast message to all members of a community (admin/coach only)
+   */
+  async broadcastToCommunity(userId: string, communityId: string, dto: Omit<SendMessageDto, 'recipient' | 'community' | 'conversation'>) {
+    const community = await this.communityModel.findById(communityId);
+    
+    if (!community) {
+      throw new NotFoundException('Community not found');
+    }
+
+    // Check if user is community admin
+    const isAdmin = community.admins.some(admin => admin.toString() === userId);
+    if (!isAdmin) {
+      throw new ForbiddenException('Only community admins can broadcast messages');
+    }
+
+    // Create broadcast message
+    const message = new this.messageModel({
+      sender: new Types.ObjectId(userId),
+      community: new Types.ObjectId(communityId),
+      type: dto.type,
+      content: dto.content,
+      mediaUrl: dto.mediaUrl,
+      mediaDuration: dto.mediaDuration,
+      mediaSize: dto.mediaSize,
+      mimeType: dto.mimeType,
+      isBroadcast: true,
+      broadcastRecipients: community.members.map(m => new Types.ObjectId(m)),
+      status: MessageStatus.SENT,
+    });
+
+    await message.save();
+
+    // Update community last message
+    await this.communityModel.findByIdAndUpdate(communityId, {
+      lastMessage: message._id,
+      lastMessageAt: new Date(),
+    });
+
+    // Fetch and populate the saved message
+    const savedMessage = await this.messageModel.findById(message._id).populate([
+      { path: 'sender', select: '_id fName lName name email role' },
+      { path: 'broadcastRecipients', select: '_id fName lName name email' },
+    ]);
+
+    this.logger.log(`📢 Broadcast message sent to ${community.members.length} members in community ${communityId}`);
+    return savedMessage;
+  }
+
+  /**
+   * Send dashboard broadcast to selected users (admin/coach only)
+   */
+  async sendDashboardBroadcast(userId: string, dto: SendMessageDto & { targetUserIds: string[] }) {
+    if (!dto.targetUserIds || dto.targetUserIds.length === 0) {
+      throw new BadRequestException('Target user IDs are required');
+    }
+
+    dto.isBroadcast = true;
+    dto.broadcastRecipients = dto.targetUserIds;
+    
+    const message = new this.messageModel({
+      sender: new Types.ObjectId(userId),
+      type: dto.type || 'text',
+      content: dto.content,
+      mediaUrl: dto.mediaUrl,
+      mediaDuration: dto.mediaDuration,
+      mediaSize: dto.mediaSize,
+      mimeType: dto.mimeType,
+      isBroadcast: true,
+      broadcastRecipients: dto.targetUserIds.map(id => new Types.ObjectId(id)),
+      status: MessageStatus.SENT,
+    });
+
+    await message.save();
+
+    // Fetch and populate the saved message
+    const savedMessage = await this.messageModel.findById(message._id).populate([
+      { path: 'sender', select: '_id fName lName name email role' },
+      { path: 'broadcastRecipients', select: '_id fName lName name email' },
+    ]);
+
+    this.logger.log(`📢 Dashboard broadcast sent to ${dto.targetUserIds.length} users by ${userId}`);
+    return savedMessage;
+  }
+
+  /**
+   * Get all broadcasts sent by a user (admin/coach dashboard)
+   */
+  async getUserBroadcasts(userId: string, limit: number = 50, skip: number = 0) {
+    const broadcasts = await this.messageModel
+      .find({
+        sender: new Types.ObjectId(userId),
+        isBroadcast: true,
+        isDeleted: false,
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .populate([
+        { path: 'sender', select: '_id fName lName name email role' },
+        { path: 'broadcastRecipients', select: '_id fName lName name email' },
+      ])
+      .exec();
+
+    return broadcasts;
+  }
+
+  /**
+   * Get broadcast messages for a user (as recipient)
+   */
+  async getUserBroadcastMessages(userId: string, limit: number = 50, skip: number = 0) {
+    const userObjectId = new Types.ObjectId(userId);
+    
+    const broadcasts = await this.messageModel
+      .find({
+        broadcastRecipients: userObjectId,
+        isBroadcast: true,
+        isDeleted: false,
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .populate([
+        { path: 'sender', select: '_id fName lName name email role' },
+        { path: 'community', select: '_id name' },
+      ])
+      .exec();
+
+    return broadcasts;
   }
 
   // ==================== STATISTICS ====================

@@ -109,6 +109,63 @@ export class ChatController {
     return message;
   }
 
+  @Post('communities/:id/broadcast')
+  async broadcastToCommunity(
+    @Request() req,
+    @Param('id') communityId: string,
+    @Body() dto: SendMessageDto,
+  ) {
+    const message = await this.chatService.broadcastToCommunity(req.user.id, communityId, dto);
+    
+    if (message) {
+      this.chatGateway.emitMessage(message);
+    }
+    
+    return message;
+  }
+
+  @Post('dashboard/broadcast')
+  async sendDashboardBroadcast(
+    @Request() req,
+    @Body() dto: SendMessageDto & { targetUserIds: string[] },
+  ) {
+    const message = await this.chatService.sendDashboardBroadcast(req.user.id, dto);
+    
+    if (message) {
+      this.chatGateway.emitMessage(message);
+    }
+    
+    return message;
+  }
+
+  @Get('broadcasts/sent')
+  async getUserBroadcasts(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    const broadcasts = await this.chatService.getUserBroadcasts(
+      req.user.id,
+      limit ? parseInt(limit) : 50,
+      skip ? parseInt(skip) : 0,
+    );
+    return broadcasts;
+  }
+
+  @Get('broadcasts/received')
+  async getUserBroadcastMessages(
+    @Request() req,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    const broadcasts = await this.chatService.getUserBroadcastMessages(
+      req.user.id,
+      limit ? parseInt(limit) : 50,
+      skip ? parseInt(skip) : 0,
+    );
+    return broadcasts;
+  }
+
   // ==================== CONVERSATION ENDPOINTS ====================
 
   @UseGuards(AuthGuard)

@@ -25,6 +25,9 @@ import { Performance, PerformanceSchema } from '../training/performance/schemas/
 import { Report, ReportSchema } from '../reports/schemas/report.schema';
 import { UserIntegration, UserIntegrationSchema } from '../integrations/schemas/user-integration.schema';
 import { Recommendation, RecommendationSchema } from '../training/recommendation/recommendation.schema';
+import { Message, MessageSchema } from '../chat/schemas/message.schema';
+import { Community, CommunitySchema } from '../chat/schemas/community.schema';
+import { Conversation, ConversationSchema } from '../chat/schemas/conversation.schema';
 
 @Module({
   imports: [
@@ -49,6 +52,9 @@ import { Recommendation, RecommendationSchema } from '../training/recommendation
       { name: Report.name, schema: ReportSchema },
       { name: UserIntegration.name, schema: UserIntegrationSchema },
       { name: Recommendation.name, schema: RecommendationSchema },
+      { name: Message.name, schema: MessageSchema },
+      { name: Community.name, schema: CommunitySchema },
+      { name: Conversation.name, schema: ConversationSchema },
     ]),
   ],
   providers: [UserService, UserProfileService], 

@@ -23,6 +23,9 @@ import { Performance } from '../training/performance/schemas/performance.schema'
 import { Report } from '../reports/schemas/report.schema';
 import { UserIntegration } from '../integrations/schemas/user-integration.schema';
 import { Recommendation } from '../training/recommendation/recommendation.schema';
+import { Message } from '../chat/schemas/message.schema';
+import { Community } from '../chat/schemas/community.schema';
+import { Conversation } from '../chat/schemas/conversation.schema';
 
 @Injectable()
 export class UserService {
@@ -44,6 +47,9 @@ export class UserService {
         @InjectModel(Report.name) private reportModel: Model<Report>,
         @InjectModel(UserIntegration.name) private userIntegrationModel: Model<UserIntegration>,
         @InjectModel(Recommendation.name) private recommendationModel: Model<Recommendation>,
+        @InjectModel(Message.name) private messageModel: Model<Message>,
+        @InjectModel(Community.name) private communityModel: Model<Community>,
+        @InjectModel(Conversation.name) private conversationModel: Model<Conversation>,
         private readonly profileService: UserProfileService,
         private readonly mailService: MailService
     ) { }
@@ -249,10 +255,35 @@ export class UserService {
                 { $pull: { athletes: objectId } }
             );
 
+            // Delete all chat-related data for the user
+            // Delete messages sent by user
+            await this.messageModel.deleteMany({ sender: objectId });
+            
+            // Delete messages received by user (direct messages)
+            await this.messageModel.deleteMany({ recipient: objectId });
+            
+            // Delete communities created by user
+            await this.communityModel.deleteMany({ createdBy: objectId });
+            
+            // Remove user from community members and admins
+            await this.communityModel.updateMany(
+                { members: objectId },
+                { $pull: { members: objectId, admins: objectId, mutedBy: objectId, bannedUsers: objectId } }
+            );
+            
+            // Delete conversations where user is a participant
+            await this.conversationModel.deleteMany({ participants: objectId });
+            
+            // Remove user from other conversations
+            await this.conversationModel.updateMany(
+                { participants: objectId },
+                { $pull: { participants: objectId } }
+            );
+
             // Finally, delete the user account
             await this.userModel.findByIdAndDelete(objectId);
             
-            return { message: 'User account and all related data have been deleted successfully' };
+            return { message: 'User account and all related data including chats have been deleted successfully' };
         } catch (error) {
             console.error('Error deleting user and related data:', error);
             throw new UnauthorizedException('Failed to delete user account');
