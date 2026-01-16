@@ -10,6 +10,9 @@ export enum MessageType {
   VIDEO = 'video',
   FILE = 'file',
   SYSTEM = 'system',
+  ANNOUNCEMENT = 'announcement',
+  ALERT = 'alert',
+  NOTIFICATION = 'notification',
 }
 
 export enum MessageStatus {
