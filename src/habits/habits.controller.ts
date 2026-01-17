@@ -70,11 +70,6 @@ export class HabitsController {
         return this.habitsService.getHabitCalendar(req.user.id, habitId, month);
     }
 
-    // ==================== HABIT SUGGESTIONS (AI & ADMIN) ====================
-
-    /**
-     * Generate AI habit suggestions for user
-     */
     @UseGuards(AuthGuard)
     @Post('suggestions/generate')
     async generateHabitSuggestions(@Request() req) {
