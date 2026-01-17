@@ -75,12 +75,6 @@ export class HabitsController {
     async generateHabitSuggestions(@Request() req) {
         return this.habitsService.generateAIHabitSuggestions(req.user.id);
     }
-
-    /**
-     * User views their approved habit suggestions
-     * NOTE: Removed - Users see all habits (AI, admin, or self-created) in /habits/today
-     */
-
     /**
      * Admin creates manual habit suggestion for user
      */
