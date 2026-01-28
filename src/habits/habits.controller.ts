@@ -1,22 +1,64 @@
 import { Body, Controller, Get, Param, Post, Query, Request, UseGuards, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { HabitsService } from './habits.service';
 import { CreateHabitDto } from './dto/create-habit.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { LogHabitDto } from './dto/log-habit.dto';
 import { HabitCalendarEntry } from './types';
 
+@ApiTags('Habits')
 @Controller('habits')
 export class HabitsController {
     constructor(private readonly habitsService: HabitsService) { }
 
     @UseGuards(AuthGuard)
     @Post('create')
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ 
+        summary: 'Create new habit',
+        description: 'Create a new habit for the authenticated user. Supports both boolean (yes/no) and numeric tracking.'
+    })
+    @ApiResponse({ 
+        status: 201, 
+        description: 'Habit created successfully',
+        schema: {
+            example: {
+                id: '507f1f77bcf86cd799439011',
+                name: 'Drink Water',
+                type: 'NUMERIC',
+                targetValue: 8,
+                unit: 'glasses',
+                userId: '507f1f77bcf86cd799439012'
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
     async createHabit(@Request() req, @Body() dto: CreateHabitDto) {
         return this.habitsService.createHabit(req.user.id, dto);
     }
 
     @UseGuards(AuthGuard)
     @Post('assign/:userId')
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ 
+        summary: 'Assign habit to user (Admin/Coach only)',
+        description: 'Assign a habit to a specific user. Only accessible to admin and coach roles.'
+    })
+    @ApiParam({ name: 'userId', description: 'Target user ID', example: '507f1f77bcf86cd799439011' })
+    @ApiResponse({ 
+        status: 201, 
+        description: 'Habit assigned successfully',
+        schema: {
+            example: {
+                id: '507f1f77bcf86cd799439011',
+                name: 'Morning Meditation',
+                type: 'BOOLEAN',
+                userId: '507f1f77bcf86cd799439012'
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @ApiResponse({ status: 403, description: 'Forbidden - Admin or Coach access required' })
     async assignHabitToUser(
         @Request() req, 
         @Param('userId') targetUserId: string,
@@ -32,18 +74,77 @@ export class HabitsController {
 
     @UseGuards(AuthGuard)
     @Get('all')
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ 
+        summary: 'Get all user habits',
+        description: 'Retrieve all habits for the authenticated user'
+    })
+    @ApiResponse({ 
+        status: 200, 
+        description: 'Habits retrieved successfully',
+        schema: {
+            example: [{
+                id: '507f1f77bcf86cd799439011',
+                name: 'Drink Water',
+                type: 'NUMERIC',
+                targetValue: 8,
+                unit: 'glasses'
+            }]
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getAllHabits(@Request() req) {
         return this.habitsService.getAllHabits(req.user.id);
     }
 
     @UseGuards(AuthGuard)
     @Get('today')
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ 
+        summary: "Get today's habits",
+        description: "Retrieve all habits for today with their completion status"
+    })
+    @ApiResponse({ 
+        status: 200, 
+        description: "Today's habits retrieved successfully",
+        schema: {
+            example: [{
+                id: '507f1f77bcf86cd799439011',
+                name: 'Drink Water',
+                type: 'NUMERIC',
+                targetValue: 8,
+                unit: 'glasses',
+                completed: 6,
+                isCompleted: false
+            }]
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
     async getTodayHabits(@Request() req) {
         return this.habitsService.getTodayHabits(req.user.id);
     }
 
     @UseGuards(AuthGuard)
     @Post("log")
+    @ApiBearerAuth('JWT-auth')
+    @ApiOperation({ 
+        summary: 'Log habit completion',
+        description: 'Log habit completion for a specific date. Value can be boolean (true/false) or numeric depending on habit type.'
+    })
+    @ApiResponse({ 
+        status: 201, 
+        description: 'Habit logged successfully',
+        schema: {
+            example: {
+                habitId: '507f1f77bcf86cd799439011',
+                date: '2024-01-28',
+                value: 8,
+                completed: true
+            }
+        }
+    })
+    @ApiResponse({ status: 401, description: 'Unauthorized' })
+    @ApiResponse({ status: 400, description: 'Invalid habit data' })
     async logHabit(@Request() req, @Body() dto: LogHabitDto) {
         return this.habitsService.logHabit(req.user.id, dto);
     }
