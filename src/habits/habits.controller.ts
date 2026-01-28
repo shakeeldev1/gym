@@ -171,22 +171,11 @@ export class HabitsController {
         return this.habitsService.getHabitCalendar(req.user.id, habitId, month);
     }
 
-    // ==================== HABIT SUGGESTIONS (AI & ADMIN) ====================
-
-    /**
-     * Generate AI habit suggestions for user
-     */
     @UseGuards(AuthGuard)
     @Post('suggestions/generate')
     async generateHabitSuggestions(@Request() req) {
         return this.habitsService.generateAIHabitSuggestions(req.user.id);
     }
-
-    /**
-     * User views their approved habit suggestions
-     * NOTE: Removed - Users see all habits (AI, admin, or self-created) in /habits/today
-     */
-
     /**
      * Admin creates manual habit suggestion for user
      */
