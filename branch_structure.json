@@ -1,0 +1,15 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/api-docs",
+    "main"
+  ],
+  "parent": {
+    "feat/api-docs": "main",
+    "main": null
+  },
+  "order": [
+    "main",
+    "feat/api-docs"
+  ]
+}

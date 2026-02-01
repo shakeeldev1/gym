@@ -1,8 +1,16 @@
 import { Controller, Post, UseGuards, Request } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { HabitsService } from 'src/habits/habits.service';
 import { SleepService } from 'src/sleep/sleep.service';
 
+@ApiTags('Seed')
+@ApiBearerAuth('JWT-auth')
 @Controller('seed')
 export class SeedController {
   constructor(
@@ -17,6 +25,11 @@ export class SeedController {
    */
   @UseGuards(AuthGuard)
   @Post('test-data')
+  @ApiOperation({
+    summary: 'Seed test data',
+    description: 'Create sample habits and sleep logs for testing.',
+  })
+  @ApiResponse({ status: 201, description: 'Test data created successfully.' })
   async seedTestData(@Request() req) {
     const userId = req.user.id;
 
@@ -47,7 +60,9 @@ export class SeedController {
       const sleepLogs = await Promise.all([
         this.sleepService.createSleepLog(userId, {
           date: today.toISOString(),
-          bedtime: new Date(today.getTime() - 10 * 60 * 60 * 1000).toISOString(),
+          bedtime: new Date(
+            today.getTime() - 10 * 60 * 60 * 1000,
+          ).toISOString(),
           wakeTime: today.toISOString(),
           durationHours: 8,
           quality: 4,
@@ -56,7 +71,9 @@ export class SeedController {
         }),
         this.sleepService.createSleepLog(userId, {
           date: yesterday.toISOString(),
-          bedtime: new Date(yesterday.getTime() - 9 * 60 * 60 * 1000).toISOString(),
+          bedtime: new Date(
+            yesterday.getTime() - 9 * 60 * 60 * 1000,
+          ).toISOString(),
           wakeTime: yesterday.toISOString(),
           durationHours: 7,
           quality: 3,
@@ -70,8 +87,15 @@ export class SeedController {
         data: {
           habitsCreated: habits.length,
           sleepLogsCreated: sleepLogs.length,
-          habits: habits.map((h: any) => ({ id: h._id?.toString() || h._id, name: h.name })),
-          sleepLogs: sleepLogs.map((s: any) => ({ id: s._id?.toString() || s._id, date: s.date, hours: s.durationHours })),
+          habits: habits.map((h: any) => ({
+            id: h._id?.toString() || h._id,
+            name: h.name,
+          })),
+          sleepLogs: sleepLogs.map((s: any) => ({
+            id: s._id?.toString() || s._id,
+            date: s.date,
+            hours: s.durationHours,
+          })),
         },
       };
     } catch (error) {
@@ -89,6 +113,11 @@ export class SeedController {
    */
   @UseGuards(AuthGuard)
   @Post('fix-habits')
+  @ApiOperation({
+    summary: 'Fix habits',
+    description: 'Set active=true for all existing habits.',
+  })
+  @ApiResponse({ status: 201, description: 'Habits fixed successfully.' })
   async fixHabits(@Request() req) {
     const userId = req.user.id;
 
@@ -96,7 +125,7 @@ export class SeedController {
       // Update all user's habits to active: true
       const result = await this.habitsService['habitModel'].updateMany(
         { user: userId, active: { $ne: true } },
-        { $set: { active: true } }
+        { $set: { active: true } },
       );
 
       return {

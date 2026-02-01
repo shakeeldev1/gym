@@ -1,19 +1,43 @@
 import { Controller, Get, Param, Res, StreamableFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import type { Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
 
+@ApiTags('General')
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
+  @ApiOperation({
+    summary: 'Health check',
+    description: 'Check if the API is running.',
+  })
+  @ApiResponse({ status: 200, description: 'API is running successfully.' })
   getHello(): string {
     return this.appService.getHello();
   }
 
   @Get('uploads/:type/:filename')
+  @ApiOperation({
+    summary: 'Serve static file',
+    description: 'Serve uploaded files (security checks included).',
+  })
+  @ApiParam({
+    name: 'type',
+    description: 'File type/folder (e.g., images, exercises)',
+    example: 'exercises',
+  })
+  @ApiParam({
+    name: 'filename',
+    description: 'Filename',
+    example: 'example.jpg',
+  })
+  @ApiResponse({ status: 200, description: 'File served successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden (Directory traversal).' })
+  @ApiResponse({ status: 404, description: 'File not found.' })
   async serveFile(
     @Param('type') type: string,
     @Param('filename') filename: string,
@@ -21,11 +45,11 @@ export class AppController {
   ) {
     try {
       const filePath = join(process.cwd(), 'uploads', type, filename);
-      
+
       // Security: prevent directory traversal
       const baseDir = join(process.cwd(), 'uploads');
       const normalizedPath = join(filePath);
-      
+
       if (!normalizedPath.startsWith(baseDir)) {
         console.error('🚫 Directory traversal attempt:', filePath);
         return res.status(403).json({ error: 'Forbidden' });
@@ -62,7 +86,7 @@ export class AppController {
       res.setHeader('Accept-Ranges', 'bytes');
 
       const stream = createReadStream(filePath);
-      
+
       stream.on('error', (error) => {
         console.error('❌ Stream error:', error);
         res.status(500).json({ error: 'Error reading file' });

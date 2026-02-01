@@ -13,15 +13,31 @@ import {
   UploadedFile,
   BadRequestException,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { CloudinaryService } from '../common/cloudinary.service';
 import { SendMessageDto } from './dto/send-message.dto';
-import { CreateCommunityDto, UpdateCommunityDto, AddMembersDto } from './dto/community.dto';
+import {
+  CreateCommunityDto,
+  UpdateCommunityDto,
+  AddMembersDto,
+} from './dto/community.dto';
 import { GetMessagesDto, MarkAsReadDto } from './dto/message-query.dto';
 
+@ApiTags('Chat')
+@ApiBearerAuth('JWT-auth')
 @Controller('chat')
 @UseGuards(AuthGuard)
 export class ChatController {
@@ -34,19 +50,29 @@ export class ChatController {
   // ==================== MESSAGE ENDPOINTS ====================
 
   @Post('messages')
+  @ApiOperation({
+    summary: 'Send a message',
+    description: 'Send a new message to a user or group.',
+  })
+  @ApiResponse({ status: 201, description: 'Message sent successfully.' })
   async sendMessage(@Request() req, @Body() dto: SendMessageDto) {
     const message = await this.chatService.sendMessage(req.user.id, dto);
-    
+
     // Emit to socket for real-time delivery
     if (message) {
       this.chatGateway.emitMessage(message);
     }
-    
+
     return message;
   }
 
   @UseGuards(AuthGuard)
   @Get('messages')
+  @ApiOperation({
+    summary: 'Get messages',
+    description: 'Retrieve messages based on query filters.',
+  })
+  @ApiResponse({ status: 200, description: 'Messages retrieved successfully.' })
   async getMessages(@Query() query: GetMessagesDto, @Request() req) {
     const userId = req.user.id;
     console.log('📨 Getting messages for user:', userId, 'query:', query);
@@ -57,26 +83,38 @@ export class ChatController {
 
   @UseGuards(AuthGuard)
   @Get('messages/:id')
+  @ApiOperation({
+    summary: 'Get a message',
+    description: 'Retrieve a specific message by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  @ApiResponse({ status: 200, description: 'Message retrieved successfully.' })
   async getMessage(@Param('id') id: string, @Request() req) {
     return this.chatService.getMessage(id);
   }
 
   @Post('messages/read')
+  @ApiOperation({
+    summary: 'Mark messages as read',
+    description: 'Mark messages in a conversation as read.',
+  })
+  @ApiResponse({ status: 200, description: 'Messages marked as read.' })
   async markAsRead(@Request() req, @Body() dto: MarkAsReadDto) {
     const updatedCount = await this.chatService.markAsRead(req.user.id, dto);
-    
+
     // Emit socket event for each message that was marked as read
     if (updatedCount > 0) {
       // Get all the messages that were just marked as read
       const messages = await this.chatService.getMessages(dto);
-      
+
       const currentUserId = String(req.user.id);
-      messages.forEach(msg => {
+      messages.forEach((msg) => {
         // Extract sender ID if it's an object
-        const senderId = typeof msg.sender === 'object' 
-          ? String(msg.sender?._id || msg.sender?.id)
-          : String(msg.sender);
-        
+        const senderId =
+          typeof msg.sender === 'object'
+            ? String(msg.sender?._id || msg.sender?.id)
+            : String(msg.sender);
+
         // Only notify the sender if it's not the current user
         if (senderId && senderId !== currentUserId) {
           this.chatGateway.server.to(`user:${senderId}`).emit('message:read', {
@@ -88,57 +126,102 @@ export class ChatController {
         }
       });
     }
-    
+
     return { message: 'Marked as read', updatedCount };
   }
 
   @Delete('messages/:id')
+  @ApiOperation({
+    summary: 'Delete a message',
+    description: 'Delete a message by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Message ID' })
+  @ApiResponse({ status: 200, description: 'Message deleted successfully.' })
   async deleteMessage(@Request() req, @Param('id') id: string) {
     return this.chatService.deleteMessage(req.user.id, id);
   }
 
   @Post('broadcast')
+  @ApiOperation({
+    summary: 'Send a broadcast',
+    description: 'Send a message to multiple users.',
+  })
+  @ApiResponse({ status: 201, description: 'Broadcast sent successfully.' })
   async sendBroadcast(@Request() req, @Body() dto: SendMessageDto) {
     const message = await this.chatService.sendBroadcast(req.user.id, dto);
-    
+
     // Emit to socket for real-time delivery
     if (message) {
       this.chatGateway.emitMessage(message);
     }
-    
+
     return message;
   }
 
   @Post('communities/:id/broadcast')
+  @ApiOperation({
+    summary: 'Broadcast to community',
+    description: 'Send a message to all members of a community.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({
+    status: 201,
+    description: 'Community broadcast sent successfully.',
+  })
   async broadcastToCommunity(
     @Request() req,
     @Param('id') communityId: string,
     @Body() dto: SendMessageDto,
   ) {
-    const message = await this.chatService.broadcastToCommunity(req.user.id, communityId, dto);
-    
+    const message = await this.chatService.broadcastToCommunity(
+      req.user.id,
+      communityId,
+      dto,
+    );
+
     if (message) {
       this.chatGateway.emitMessage(message);
     }
-    
+
     return message;
   }
 
   @Post('dashboard/broadcast')
+  @ApiOperation({
+    summary: 'Dashboard broadcast',
+    description: 'Send a broadcast from the dashboard to target users.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Dashboard broadcast sent successfully.',
+  })
   async sendDashboardBroadcast(
     @Request() req,
     @Body() dto: SendMessageDto & { targetUserIds: string[] },
   ) {
-    const message = await this.chatService.sendDashboardBroadcast(req.user.id, dto);
-    
+    const message = await this.chatService.sendDashboardBroadcast(
+      req.user.id,
+      dto,
+    );
+
     if (message) {
       this.chatGateway.emitMessage(message);
     }
-    
+
     return message;
   }
 
   @Get('broadcasts/sent')
+  @ApiOperation({
+    summary: 'Get sent broadcasts',
+    description: 'Retrieve broadcasts sent by the user.',
+  })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'skip', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Sent broadcasts retrieved successfully.',
+  })
   async getUserBroadcasts(
     @Request() req,
     @Query('limit') limit?: string,
@@ -153,6 +236,16 @@ export class ChatController {
   }
 
   @Get('broadcasts/received')
+  @ApiOperation({
+    summary: 'Get received broadcasts',
+    description: 'Retrieve broadcasts received by the user.',
+  })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'skip', required: false })
+  @ApiResponse({
+    status: 200,
+    description: 'Received broadcasts retrieved successfully.',
+  })
   async getUserBroadcastMessages(
     @Request() req,
     @Query('limit') limit?: string,
@@ -170,6 +263,15 @@ export class ChatController {
 
   @UseGuards(AuthGuard)
   @Get('conversations/:id')
+  @ApiOperation({
+    summary: 'Get conversation',
+    description: 'Retrieve a conversation by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversation retrieved successfully.',
+  })
   async getConversation(@Param('id') id: string, @Request() req) {
     const userId = req.user.id;
     console.log('📋 Getting conversation:', id, 'for user:', userId);
@@ -179,6 +281,23 @@ export class ChatController {
   // ==================== FILE UPLOAD ENDPOINTS ====================
 
   @Post('upload')
+  @ApiOperation({
+    summary: 'Upload file',
+    description: 'Upload a file (image, video, audio, document) to Cloudinary.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File uploaded successfully.' })
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
@@ -229,7 +348,12 @@ export class ChatController {
           callback(null, true);
         } else {
           console.error(`❌ Rejected file type: ${file.mimetype}`);
-          callback(new BadRequestException(`Invalid file type: ${file.mimetype}. Allowed types: images, videos, audio, and documents.`), false);
+          callback(
+            new BadRequestException(
+              `Invalid file type: ${file.mimetype}. Allowed types: images, videos, audio, and documents.`,
+            ),
+            false,
+          );
         }
       },
     }),
@@ -268,25 +392,70 @@ export class ChatController {
 
   @UseGuards(AuthGuard)
   @Get('conversations')
+  @ApiOperation({
+    summary: 'Get user conversations',
+    description: 'Retrieve all conversations for the authenticated user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversations retrieved successfully.',
+  })
   async getUserConversations(@Request() req) {
     console.log('📥 GET /chat/conversations called for user:', req.user.id);
-    const conversations = await this.chatService.getUserConversations(req.user.id);
-    console.log('📤 Returning', conversations.length, 'conversations for user:', req.user.id);
+    const conversations = await this.chatService.getUserConversations(
+      req.user.id,
+    );
+    console.log(
+      '📤 Returning',
+      conversations.length,
+      'conversations for user:',
+      req.user.id,
+    );
     return conversations;
   }
 
   @Get('user/status/:userId')
+  @ApiOperation({
+    summary: 'Get user online status',
+    description: 'Check if a specific user is currently online.',
+  })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'User status retrieved successfully.',
+  })
   async getUserStatus(@Param('userId') userId: string) {
     const isOnline = await this.chatService.isUserOnline(userId);
     return { userId, isOnline };
   }
 
   @Post('conversations/:id/archive')
+  @ApiOperation({
+    summary: 'Archive conversation',
+    description: 'Archive a conversation.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversation archived successfully.',
+  })
   async archiveConversation(@Request() req, @Param('id') id: string) {
     return this.chatService.archiveConversation(req.user.id, id);
   }
 
   @Post('conversations/:id/mute')
+  @ApiOperation({
+    summary: 'Mute/Unmute conversation',
+    description: 'Mute or unmute notifications for a conversation.',
+  })
+  @ApiParam({ name: 'id', description: 'Conversation ID' })
+  @ApiBody({
+    schema: { type: 'object', properties: { muted: { type: 'boolean' } } },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Conversation mute status updated successfully.',
+  })
   async muteConversation(
     @Request() req,
     @Param('id') id: string,
@@ -296,6 +465,14 @@ export class ChatController {
   }
 
   @Get('unread-count')
+  @ApiOperation({
+    summary: 'Get unread message count',
+    description: 'Get total count of unread messages for the user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Unread count retrieved successfully.',
+  })
   async getUnreadCount(@Request() req) {
     return this.chatService.getUnreadCount(req.user.id);
   }
@@ -303,21 +480,49 @@ export class ChatController {
   // ==================== COMMUNITY ENDPOINTS ====================
 
   @Post('communities')
+  @ApiOperation({
+    summary: 'Create community',
+    description: 'Create a new community chat group.',
+  })
+  @ApiResponse({ status: 201, description: 'Community created successfully.' })
   async createCommunity(@Request() req, @Body() dto: CreateCommunityDto) {
     return this.chatService.createCommunity(req.user.id, dto);
   }
 
   @Get('communities')
+  @ApiOperation({
+    summary: 'Get user communities',
+    description: 'Retrieve all communities the user is a member of.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Communities retrieved successfully.',
+  })
   async getUserCommunities(@Request() req) {
     return this.chatService.getUserCommunities(req.user.id);
   }
 
   @Get('communities/:id')
+  @ApiOperation({
+    summary: 'Get community details',
+    description: 'Retrieve details of a specific community.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Community details retrieved successfully.',
+  })
   async getCommunity(@Param('id') id: string) {
     return this.chatService.getCommunity(id);
   }
 
   @Put('communities/:id')
+  @ApiOperation({
+    summary: 'Update community',
+    description: 'Update community details (name, description, etc.).',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({ status: 200, description: 'Community updated successfully.' })
   async updateCommunity(
     @Request() req,
     @Param('id') id: string,
@@ -327,11 +532,23 @@ export class ChatController {
   }
 
   @Delete('communities/:id')
+  @ApiOperation({
+    summary: 'Delete community',
+    description: 'Delete a community permanently.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({ status: 200, description: 'Community deleted successfully.' })
   async deleteCommunity(@Request() req, @Param('id') id: string) {
     return this.chatService.deleteCommunity(req.user.id, id);
   }
 
   @Post('communities/:id/members')
+  @ApiOperation({
+    summary: 'Add members to community',
+    description: 'Add new members to an existing community.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({ status: 200, description: 'Members added successfully.' })
   async addMembers(
     @Request() req,
     @Param('id') id: string,
@@ -341,6 +558,13 @@ export class ChatController {
   }
 
   @Delete('communities/:id/members/:userId')
+  @ApiOperation({
+    summary: 'Remove member from community',
+    description: 'Remove a user from a community.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiParam({ name: 'userId', description: 'User ID to remove' })
+  @ApiResponse({ status: 200, description: 'Member removed successfully.' })
   async removeMember(
     @Request() req,
     @Param('id') id: string,
@@ -350,6 +574,16 @@ export class ChatController {
   }
 
   @Post('communities/:id/admins/:userId')
+  @ApiOperation({
+    summary: 'Promote to admin',
+    description: 'Promote a community member to admin status.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiParam({ name: 'userId', description: 'User ID to promote' })
+  @ApiResponse({
+    status: 200,
+    description: 'Member promoted to admin successfully.',
+  })
   async promoteToAdmin(
     @Request() req,
     @Param('id') id: string,
@@ -359,11 +593,26 @@ export class ChatController {
   }
 
   @Post('communities/:id/leave')
+  @ApiOperation({
+    summary: 'Leave community',
+    description: 'Leave a community voluntarily.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({ status: 200, description: 'Left community successfully.' })
   async leaveCommunity(@Request() req, @Param('id') id: string) {
     return this.chatService.leaveCommunity(req.user.id, id);
   }
 
   @Get('communities/:id/unread-count')
+  @ApiOperation({
+    summary: 'Get community unread count',
+    description: 'Get unread message count for a specific community.',
+  })
+  @ApiParam({ name: 'id', description: 'Community ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Community unread count retrieved successfully.',
+  })
   async getCommunityUnreadCount(@Request() req, @Param('id') id: string) {
     return this.chatService.getCommunityUnreadCount(req.user.id, id);
   }
@@ -371,11 +620,27 @@ export class ChatController {
   // ==================== OFFLINE MESSAGE QUEUE ====================
 
   @Get('queued-messages')
+  @ApiOperation({
+    summary: 'Get queued messages',
+    description: 'Retrieve messages queued while offline.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Queued messages retrieved successfully.',
+  })
   async getQueuedMessages(@Request() req) {
     return this.chatService.getQueuedMessages(req.user.id);
   }
 
   @Get('queue-status')
+  @ApiOperation({
+    summary: 'Get queue status',
+    description: 'Get status of the offline message queue.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Queue status retrieved successfully.',
+  })
   async getQueueStatus(@Request() req) {
     return this.chatService.getQueueStatus(req.user.id);
   }
