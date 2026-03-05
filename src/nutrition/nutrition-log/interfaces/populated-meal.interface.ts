@@ -2,8 +2,7 @@ export interface MacroSource {
   calories: number;
   protein: number;
   carbs: number;
-  fat: number;
-  date: Date;
+  fats: number;
 }
 
 export interface PopulatedMealItem {

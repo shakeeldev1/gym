@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Recipe } from './schemas/recipe.schema';
 import { Model } from 'mongoose';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
-import { udpateRecipeDto } from './dto/update-recipe.dto';
+import { UpdateRecipeDto } from './dto/update-recipe.dto';
 
 @Injectable()
 export class RecipeService {
@@ -40,7 +40,7 @@ export class RecipeService {
         return { message: 'Recipe retrieved successfully', recipe };
     }
 
-    async updateRecipe(id: string, dto: udpateRecipeDto): Promise<{ message: string, recipe?: Recipe }> {
+    async updateRecipe(id: string, dto: UpdateRecipeDto): Promise<{ message: string, recipe?: Recipe }> {
         const updatedRecipe = await this.recipeModel.findByIdAndUpdate(id, dto, { new: true }).exec();
         if (!updatedRecipe) {
             throw new NotFoundException('Recipe not found');

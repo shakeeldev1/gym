@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Food } from './schemas/food.schema';
 import { Model } from 'mongoose';
 import { CreateFoodDto } from './dto/create-food.dto';
-import { updateFoodDto } from './dto/update-food.dto';
+import { UpdateFoodDto } from './dto/update-food.dto';
 
 @Injectable()
 export class FoodService {
@@ -36,7 +36,7 @@ export class FoodService {
         return { message: "Food item found", foodItem };
     }
 
-    async updateFoodItem(id: string, dto: updateFoodDto): Promise<{ message: string, updateFoodItem: Food }> {
+    async updateFoodItem(id: string, dto: UpdateFoodDto): Promise<{ message: string, updateFoodItem: Food }> {
         const updateFoodItem = await this.foodModel.findByIdAndUpdate(id, dto, { new: true }).exec();
         if (!updateFoodItem) {
             throw new NotFoundException('Food item not found');

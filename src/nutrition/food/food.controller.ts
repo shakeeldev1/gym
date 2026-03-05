@@ -18,7 +18,7 @@ import {
 import { FoodService } from './food.service';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { updateFoodDto } from './dto/update-food.dto';
+import { UpdateFoodDto } from './dto/update-food.dto';
 
 @ApiTags('Nutrition - Food')
 @ApiBearerAuth('JWT-auth')
@@ -89,7 +89,7 @@ export class FoodController {
   })
   @ApiParam({ name: 'id', description: 'Food Item ID' })
   @ApiResponse({ status: 200, description: 'Food item updated successfully.' })
-  updateFoodItem(@Param('id') id: string, @Body() dto: updateFoodDto) {
+  updateFoodItem(@Param('id') id: string, @Body() dto: UpdateFoodDto) {
     return this.foodService.updateFoodItem(id, dto);
   }
 

@@ -36,13 +36,13 @@ export interface NutritionPlanSuggestion {
 export class NutritionGoalService {
     constructor(@InjectModel(NutritionGoal.name) private nutritionGoalModel: Model<NutritionGoal>) { }
 
-    async createNutritionGoal(userId: number, dto: CreateNutritionGoalDto): Promise<{ message: string, NutritionGoal?: NutritionGoal }> {
+    async createNutritionGoal(userId: string, dto: CreateNutritionGoalDto): Promise<{ message: string, NutritionGoal?: NutritionGoal }> {
         await this.nutritionGoalModel.updateMany(
-            { user: userId, isActive: true },
+            { user: new Types.ObjectId(userId), isActive: true },
             { isActive: false }
         );
         const newGoal = await this.nutritionGoalModel.create({
-            user: new Types.ObjectId(userId.toString()),
+            user: new Types.ObjectId(userId),
             ...dto,
             startDate: new Date(dto.startDate),
             endDate: dto.endDate ? new Date(dto.endDate) : undefined,

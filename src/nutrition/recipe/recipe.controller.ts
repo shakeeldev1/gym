@@ -19,7 +19,7 @@ import {
 import { RecipeService } from './recipe.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
-import { udpateRecipeDto } from './dto/update-recipe.dto';
+import { UpdateRecipeDto } from './dto/update-recipe.dto';
 
 @ApiTags('Nutrition - Recipe')
 @ApiBearerAuth('JWT-auth')
@@ -86,7 +86,7 @@ export class RecipeController {
   })
   @ApiParam({ name: 'id', description: 'Recipe ID' })
   @ApiResponse({ status: 200, description: 'Recipe updated successfully.' })
-  async updateRecipe(@Param('id') id: string, @Body() dto: udpateRecipeDto) {
+  async updateRecipe(@Param('id') id: string, @Body() dto: UpdateRecipeDto) {
     return this.recipeService.updateRecipe(id, dto);
   }
 

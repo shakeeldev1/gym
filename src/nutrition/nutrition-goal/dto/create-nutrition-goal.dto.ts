@@ -45,18 +45,18 @@ export class CreateNutritionGoalDto {
     fatsTarget: number;
 
     @ApiProperty({
-        description: 'Goal start date (ISO)',
+        description: 'Goal start date (YYYY-MM-DD)',
         example: '2026-01-01',
         required: true,
     })
-    @IsDateString()
-    startDate: Date;
+    @IsDateString({}, { message: 'startDate must be a valid ISO date string (YYYY-MM-DD)' })
+    startDate: string;
 
     @ApiPropertyOptional({
-        description: 'Goal end date (ISO)',
+        description: 'Goal end date (YYYY-MM-DD)',
         example: '2026-03-01',
     })
     @IsOptional()
-    @IsDateString()
-    endDate?: Date;
+    @IsDateString({}, { message: 'endDate must be a valid ISO date string (YYYY-MM-DD)' })
+    endDate?: string;
 }

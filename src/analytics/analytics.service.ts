@@ -350,10 +350,10 @@ export class AnalyticsService {
         active: true 
       } as any),
 
-      // Get habit logs for today (completed habits)
+      // Get habit logs for today (completed habits) — uses Date range
       this.habitLogModel.countDocuments({
         ...userFilter,
-        date: dateString
+        date: { $gte: queryStart, $lt: queryEnd }
       } as any),
     ])
 

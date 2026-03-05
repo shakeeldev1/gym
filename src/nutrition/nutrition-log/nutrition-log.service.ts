@@ -27,30 +27,30 @@ export class NutritionLogService {
                 user: userObjectId,
                 date: { $gte: start, $lte: end },
             })
-            .populate('items.food', 'calories protein carbs fat')
-            .populate('items.recipe', 'calories protein carbs fat')
+            .populate('items.food', 'calories protein carbs fats')
+            .populate('items.recipe', 'calories protein carbs fats')
             .lean<PopulatedMeal[]>()
             .exec();
 
         let totalCalories = 0;
         let totalProtein = 0;
         let totalCarbs = 0;
-        let totalFat = 0;
+        let totalFats = 0;
 
         for (const meal of meals) {
             for (const item of meal.items) {
                 if (item.food) {
-                    totalCalories += item.food.calories * (item.quantity / 100);
-                    totalProtein += item.food.protein * (item.quantity / 100);
-                    totalCarbs += item.food.carbs * (item.quantity / 100);
-                    totalFat += item.food.fat * (item.quantity / 100);
+                    totalCalories += (item.food.calories || 0) * (item.quantity / 100);
+                    totalProtein += (item.food.protein || 0) * (item.quantity / 100);
+                    totalCarbs += (item.food.carbs || 0) * (item.quantity / 100);
+                    totalFats += (item.food.fats || 0) * (item.quantity / 100);
                 }
 
                 if (item.recipe) {
-                    totalCalories += item.recipe.calories * item.quantity;
-                    totalProtein += item.recipe.protein * item.quantity;
-                    totalCarbs += item.recipe.carbs * item.quantity;
-                    totalFat += item.recipe.fat * item.quantity;
+                    totalCalories += (item.recipe.calories || 0) * item.quantity;
+                    totalProtein += (item.recipe.protein || 0) * item.quantity;
+                    totalCarbs += (item.recipe.carbs || 0) * item.quantity;
+                    totalFats += (item.recipe.fats || 0) * item.quantity;
                 }
             }
         }
@@ -62,7 +62,7 @@ export class NutritionLogService {
                 calories: Math.round(totalCalories),
                 protein: Math.round(totalProtein),
                 carbs: Math.round(totalCarbs),
-                fat: Math.round(totalFat),
+                fats: Math.round(totalFats),
             },
         };
     }
@@ -89,8 +89,8 @@ export class NutritionLogService {
                 user: userObjectId,
                 date: { $gte: startDate, $lte: endDate },
             })
-            .populate('items.food', 'calories protein carbs fat')
-            .populate('items.recipe', 'calories protein carbs fat')
+            .populate('items.food', 'calories protein carbs fats')
+            .populate('items.recipe', 'calories protein carbs fats')
             .lean<any[]>()
             .exec();
 
@@ -125,14 +125,14 @@ export class NutritionLogService {
                     entry.totalCalories += (item.food.calories || 0) * (item.quantity / 100);
                     entry.totalProtein += (item.food.protein || 0) * (item.quantity / 100);
                     entry.totalCarbs += (item.food.carbs || 0) * (item.quantity / 100);
-                    entry.totalFats += (item.food.fat || 0) * (item.quantity / 100);
+                    entry.totalFats += (item.food.fats || 0) * (item.quantity / 100);
                 }
 
                 if (item.recipe) {
                     entry.totalCalories += (item.recipe.calories || 0) * item.quantity;
                     entry.totalProtein += (item.recipe.protein || 0) * item.quantity;
                     entry.totalCarbs += (item.recipe.carbs || 0) * item.quantity;
-                    entry.totalFats += (item.recipe.fat || 0) * item.quantity;
+                    entry.totalFats += (item.recipe.fats || 0) * item.quantity;
                 }
             }
         }
