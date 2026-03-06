@@ -29,7 +29,7 @@ export class Fasting {
   @Prop({ default: false })
   isActive: boolean;
 
-  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  @Prop({ enum: ['planned', 'done', 'completed', 'missed', 'skipped'], default: 'planned' })
   status: string;
 
   @Prop({ default: false })

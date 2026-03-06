@@ -21,7 +21,8 @@ export class FastingService {
             goalDurationHours: dto.goalDurationHours,
             goalHours: dto.goalHours,
             notes: dto.notes,
-            isActive: true
+            isActive: true,
+            status: 'planned',
         });
 
         return newFast;
@@ -41,6 +42,7 @@ export class FastingService {
         activeFast.endTime = endTime;
         activeFast.actualDurationHours = Number(durationHours.toFixed(2));
         activeFast.isActive = false;
+        activeFast.status = 'done';
         if (dto.notes) activeFast.notes = dto.notes;
 
         await activeFast.save();

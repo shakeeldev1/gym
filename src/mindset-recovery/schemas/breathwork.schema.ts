@@ -20,7 +20,7 @@ export class Breathwork {
   @Prop({ default: Date.now })
   date: Date;
 
-  @Prop({ enum: ['planned', 'done', 'missed', 'skipped'], default: 'planned' })
+  @Prop({ enum: ['planned', 'done', 'completed', 'missed', 'skipped'], default: 'planned' })
   status: string;
   @Prop({ default: false })
   isAiGenerated: boolean;

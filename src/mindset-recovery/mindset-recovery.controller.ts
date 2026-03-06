@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Query,
   Request,
@@ -21,6 +22,9 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { CreateMeditationDto } from './dto/create-meditation.dto';
 import { CreateBreathworkDto } from './dto/create-breathwork.dto';
 import { CreateSleepDto } from './dto/create-sleep.dto';
+import { UpdateBreathworkDto } from './dto/update-breathwork.dto';
+import { UpdateMeditationDto } from './dto/update-meditation.dto';
+import { UpdateSleepDto } from './dto/update-sleep.dto';
 import { GetMindsetProgressDto } from './dto/get-progress.dto';
 import { RecoveryPlan } from './schemas/recovery-plan.schema';
 
@@ -219,6 +223,65 @@ export class MindsetRecoveryController {
   })
   async getMyRecoveryPlan(@Request() req) {
     return this.mindsetRecoveryService.getAIRecoveryPlan(req.user.id);
+  }
+
+  // ==================== UPDATE ENDPOINTS ====================
+
+  @UseGuards(AuthGuard)
+  @Patch('breathwork/update/:id')
+  @ApiOperation({
+    summary: 'Update breathwork',
+    description: 'Update a breathwork session by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Breathwork ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Breathwork session updated successfully.',
+  })
+  async updateBreathwork(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateBreathworkDto,
+  ) {
+    return this.mindsetRecoveryService.updateBreathwork(req.user.id, id, dto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('meditation/update/:id')
+  @ApiOperation({
+    summary: 'Update meditation',
+    description: 'Update a meditation session by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Meditation ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Meditation session updated successfully.',
+  })
+  async updateMeditation(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateMeditationDto,
+  ) {
+    return this.mindsetRecoveryService.updateMeditation(req.user.id, id, dto);
+  }
+
+  @UseGuards(AuthGuard)
+  @Patch('sleep/update/:id')
+  @ApiOperation({
+    summary: 'Update sleep',
+    description: 'Update a sleep record by ID.',
+  })
+  @ApiParam({ name: 'id', description: 'Sleep ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sleep record updated successfully.',
+  })
+  async updateSleep(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: UpdateSleepDto,
+  ) {
+    return this.mindsetRecoveryService.updateSleep(req.user.id, id, dto);
   }
 
   // ==================== AI SUGGESTIONS ENDPOINTS ====================

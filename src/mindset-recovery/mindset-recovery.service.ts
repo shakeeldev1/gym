@@ -574,5 +574,55 @@ export class MindsetRecoveryService {
 
         return suggestion;
     }
+
+    // ==================== UPDATE ENDPOINTS ====================
+
+    /**
+     * Update a breathwork record by ID (only if owned by the user)
+     */
+    async updateBreathwork(userId: string, id: string, dto: Record<string, any>) {
+        const userObjectId = new Types.ObjectId(userId);
+        const record = await this.breathworkModel.findOneAndUpdate(
+            { _id: id, $or: [{ user: userObjectId }, { user: userId }] },
+            { $set: dto },
+            { new: true },
+        );
+        if (!record) {
+            throw new Error('Breathwork record not found or not owned by user');
+        }
+        return record;
+    }
+
+    /**
+     * Update a meditation record by ID (only if owned by the user)
+     */
+    async updateMeditation(userId: string, id: string, dto: Record<string, any>) {
+        const userObjectId = new Types.ObjectId(userId);
+        const record = await this.meditationModel.findOneAndUpdate(
+            { _id: id, $or: [{ user: userObjectId }, { user: userId }] },
+            { $set: dto },
+            { new: true },
+        );
+        if (!record) {
+            throw new Error('Meditation record not found or not owned by user');
+        }
+        return record;
+    }
+
+    /**
+     * Update a sleep record by ID (only if owned by the user)
+     */
+    async updateSleep(userId: string, id: string, dto: Record<string, any>) {
+        const userObjectId = new Types.ObjectId(userId);
+        const record = await this.sleepModel.findOneAndUpdate(
+            { _id: id, $or: [{ user: userObjectId }, { user: userId }] },
+            { $set: dto },
+            { new: true },
+        );
+        if (!record) {
+            throw new Error('Sleep record not found or not owned by user');
+        }
+        return record;
+    }
 }
 

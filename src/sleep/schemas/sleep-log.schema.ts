@@ -26,7 +26,7 @@ export class SleepLog {
   @Prop()
   notes?: string;
 
-  @Prop({ enum: ['planned', 'done', 'missed'], default: 'done' })
+  @Prop({ enum: ['planned', 'done', 'completed', 'missed'], default: 'done' })
   status: string;
 }
 
