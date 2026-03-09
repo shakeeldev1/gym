@@ -11,21 +11,10 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
-  // ✅ CORS configuration
   app.enableCors({
-    origin: [
-      '*',
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost:5174',
-      'https://health-thrive.site',
-      'https://thrive2-0.vercel.app',
-      'https://www.health-thrive.site',
-    ],
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true,
-    optionsSuccessStatus: 200,
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // ✅ Global validation pipe
@@ -75,7 +64,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
     operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
   });
-  
+
   SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
