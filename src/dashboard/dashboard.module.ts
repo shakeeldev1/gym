@@ -7,6 +7,8 @@ import { Session, SessionSchema } from '../training/session/schemas/session.sche
 import { NutritionGoal, NutritionGoalSchema } from '../nutrition/nutrition-goal/schemas/nutrition-goal.schema';
 import { HabitLog, HabitLogSchema } from '../habits/schemas/habit-log.schema';
 import { SleepLog, SleepLogSchema } from '../sleep/schemas/sleep-log.schema';
+import { Meal, MealSchema } from '../nutrition/meal/schemas/meal.schema';
+import { Habit, HabitSchema } from '../habits/schemas/habit.schema';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { SleepLog, SleepLogSchema } from '../sleep/schemas/sleep-log.schema';
       { name: NutritionGoal.name, schema: NutritionGoalSchema },
       { name: HabitLog.name, schema: HabitLogSchema },
       { name: SleepLog.name, schema: SleepLogSchema },
+      { name: Meal.name, schema: MealSchema },
+      { name: Habit.name, schema: HabitSchema },
     ]),
   ],
   controllers: [DashboardController],

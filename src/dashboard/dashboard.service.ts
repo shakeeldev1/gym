@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 @Injectable()
 export class DashboardService {
@@ -9,6 +9,8 @@ export class DashboardService {
     @InjectModel('NutritionGoal') private nutritionGoalModel: Model<any>,
     @InjectModel('HabitLog') private habitLogModel: Model<any>,
     @InjectModel('SleepLog') private sleepLogModel: Model<any>,
+    @InjectModel('Meal') private mealModel: Model<any>,
+    @InjectModel('Habit') private habitModel: Model<any>,
   ) {}
 
   async getSummary(userId: string): Promise<any> {
@@ -17,36 +19,70 @@ export class DashboardService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [todaySessions, nutritionGoal, todayHabits, lastSleep] =
-      await Promise.all([
-        this.sessionModel.countDocuments({
-          user: userId,
-          sessionDate: { $gte: today, $lt: tomorrow },
-        }),
-        this.nutritionGoalModel
-          .findOne({ userId, isActive: true })
-          .select('calorieTarget proteinTarget carbsTarget fatsTarget')
-          .lean(),
-        this.habitLogModel.countDocuments({
-          userId,
-          date: { $gte: today, $lt: tomorrow },
-        }),
-        this.sleepLogModel
-          .findOne({ userId })
-          .sort({ createdAt: -1 })
-          .select('durationHours quality')
-          .lean(),
-      ]);
+    const userObjectId = new Types.ObjectId(userId);
+
+    const [
+      todayCompletedSessions,
+      todayTotalSessions,
+      nutritionGoal,
+      todayHabits,
+      lastSleep,
+      todayMeals,
+      waterIntake,
+    ] = await Promise.all([
+      this.sessionModel.countDocuments({
+        user: userObjectId,
+        sessionDate: { $gte: today, $lt: tomorrow },
+        completed: true,
+      }),
+      this.sessionModel.countDocuments({
+        user: userObjectId,
+        sessionDate: { $gte: today, $lt: tomorrow },
+      }),
+      this.nutritionGoalModel
+        .findOne({ user: userObjectId, isActive: true })
+        .select('caloriesTarget proteinTarget carbsTarget fatsTarget')
+        .lean(),
+      this.habitLogModel.countDocuments({
+        user: userObjectId,
+        date: { $gte: today, $lt: tomorrow },
+      }),
+      this.sleepLogModel
+        .findOne({ user: userObjectId })
+        .sort({ createdAt: -1 })
+        .select('durationHours quality')
+        .lean(),
+      this.mealModel.countDocuments({
+        user: userObjectId,
+        date: { $gte: today, $lt: tomorrow },
+        status: 'done',
+      }),
+      this.getWaterIntake(userObjectId, today, tomorrow),
+    ]);
+
+    // Estimate active minutes: ~30 min per completed session
+    const activeMinutes = todayCompletedSessions * 30;
+    // Estimate calories burned: ~250 kcal per completed session
+    const caloriesBurned = todayCompletedSessions * 250;
 
     return {
       data: {
-        todayWorkouts: todaySessions,
+        // Fields for Flutter app
+        workoutsCompleted: todayCompletedSessions,
+        caloriesBurned,
+        activeMinutes,
+        waterIntake,
+        stepsToday: 0, // No step sensor integration yet
+        caloriesConsumed: todayMeals * 500, // Estimate per meal
+
+        // Fields for web client
+        todayWorkouts: todayTotalSessions,
         nutritionGoal: nutritionGoal || null,
         habitsCompleted: todayHabits,
         lastSleep: lastSleep || null,
         greeting: this.getGreeting(),
         quickStats: {
-          workoutsThisWeek: await this.getWeeklyWorkoutCount(userId),
+          workoutsThisWeek: await this.getWeeklyWorkoutCount(userObjectId),
         },
       },
     };
@@ -58,26 +94,43 @@ export class DashboardService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const [sessions, nutritionGoal] = await Promise.all([
-      this.sessionModel
-        .find({ user: userId, sessionDate: { $gte: today, $lt: tomorrow } })
-        .lean(),
-      this.nutritionGoalModel
-        .findOne({ userId, isActive: true })
-        .lean() as Promise<any>,
-    ]);
+    const userObjectId = new Types.ObjectId(userId);
+
+    const [sessions, nutritionGoal, lastSleep, waterIntake] =
+      await Promise.all([
+        this.sessionModel
+          .find({
+            user: userObjectId,
+            sessionDate: { $gte: today, $lt: tomorrow },
+          })
+          .lean(),
+        this.nutritionGoalModel
+          .findOne({ user: userObjectId, isActive: true })
+          .lean() as Promise<any>,
+        this.sleepLogModel
+          .findOne({
+            user: userObjectId,
+            date: { $gte: today, $lt: tomorrow },
+          })
+          .select('durationHours')
+          .lean() as Promise<any>,
+        this.getWaterIntake(userObjectId, today, tomorrow),
+      ]);
 
     return {
       data: {
         workoutGoal: { target: 1, completed: sessions.length },
         nutritionGoal: nutritionGoal
           ? {
-              calorieTarget: nutritionGoal.calorieTarget,
+              calorieTarget: nutritionGoal.caloriesTarget,
               proteinTarget: nutritionGoal.proteinTarget,
             }
           : null,
-        waterGoal: { target: 8, completed: 0 }, // Placeholder until water tracking is implemented
-        sleepGoal: { target: 8, completed: 0 },
+        waterGoal: { target: 8, completed: waterIntake },
+        sleepGoal: {
+          target: 8,
+          completed: lastSleep?.durationHours || 0,
+        },
       },
     };
   }
@@ -115,7 +168,7 @@ export class DashboardService {
     return 'Good evening';
   }
 
-  private async getWeeklyWorkoutCount(userId: string): Promise<number> {
+  private async getWeeklyWorkoutCount(userId: Types.ObjectId): Promise<number> {
     const now = new Date();
     const weekStart = new Date(now);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
@@ -126,5 +179,38 @@ export class DashboardService {
       sessionDate: { $gte: weekStart },
       completed: true,
     });
+  }
+
+  private async getWaterIntake(
+    userId: Types.ObjectId,
+    today: Date,
+    tomorrow: Date,
+  ): Promise<number> {
+    try {
+      // Find water-related habit
+      const waterHabit = await this.habitModel
+        .findOne({
+          name: { $regex: /water|hydrat/i },
+        })
+        .select('_id')
+        .lean();
+
+      if (!waterHabit) return 0;
+
+      const log = await this.habitLogModel
+        .findOne({
+          user: userId,
+          habit: (waterHabit as any)._id,
+          date: { $gte: today, $lt: tomorrow },
+        })
+        .select('value')
+        .lean();
+
+      if (!log) return 0;
+      const val = (log as any).value;
+      return typeof val === 'number' ? val : val ? 1 : 0;
+    } catch {
+      return 0;
+    }
   }
 }

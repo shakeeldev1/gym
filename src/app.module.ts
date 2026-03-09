@@ -26,6 +26,7 @@ import { PlansModule } from './plans/plans.module';
 import { OnDemandModule } from './on-demand/on-demand.module';
 import { CycleModule } from './cycle/cycle.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     OnDemandModule,
     CycleModule,
     DashboardModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

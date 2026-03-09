@@ -76,7 +76,7 @@ export class CreateBodyMetricsDto {
 export class LogWeightDto {
   @ApiProperty()
   @IsNumber()
-  weight: number;
+  weight!: number;
 
   @ApiPropertyOptional()
   @IsOptional()
