@@ -19,6 +19,13 @@ import { SeedModule } from './seed/seed.module';
 import { ChatModule } from './chat/chat.module';
 import { RedisModule } from './redis/redis.module';
 import { WellnessRecipesModule } from './recipes/recipes.module';
+import { FitnessModule } from './fitness/fitness.module';
+import { BodyMetricsModule } from './body-metrics/body-metrics.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { PlansModule } from './plans/plans.module';
+import { OnDemandModule } from './on-demand/on-demand.module';
+import { CycleModule } from './cycle/cycle.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -40,6 +47,13 @@ import { WellnessRecipesModule } from './recipes/recipes.module';
     SeedModule,
     ChatModule,
     WellnessRecipesModule,
+    FitnessModule,
+    BodyMetricsModule,
+    FavoritesModule,
+    PlansModule,
+    OnDemandModule,
+    CycleModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
