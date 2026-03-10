@@ -50,6 +50,43 @@ export class PlansController {
     return { data: progress };
   }
 
+  // ============== TRAINING PLANS ==============
+
+  @UseGuards(AuthGuard)
+  @Get('training')
+  @ApiOperation({ summary: 'Get all training plans' })
+  @ApiResponse({ status: 200, description: 'Training plans retrieved.' })
+  async getTrainingPlans() {
+    const plans = await this.plansService.getTrainingPlans();
+    return { data: plans };
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('training/gym')
+  @ApiOperation({ summary: 'Get gym training plans' })
+  @ApiResponse({ status: 200, description: 'Gym plans retrieved.' })
+  async getGymPlans() {
+    const plans = await this.plansService.getGymPlans();
+    return { data: plans };
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('training/home')
+  @ApiOperation({ summary: 'Get home training plans' })
+  @ApiResponse({ status: 200, description: 'Home plans retrieved.' })
+  async getHomePlans() {
+    const plans = await this.plansService.getHomePlans();
+    return { data: plans };
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('training/:id/start')
+  @ApiOperation({ summary: 'Start a training plan' })
+  @ApiResponse({ status: 201, description: 'Training plan started.' })
+  async startTrainingPlan(@Request() req, @Param('id') id: string) {
+    return this.plansService.startTrainingPlan(req.user.id, id);
+  }
+
   @UseGuards(AuthGuard)
   @Post('seed')
   @ApiOperation({ summary: 'Seed default plans' })

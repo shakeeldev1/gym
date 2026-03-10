@@ -59,7 +59,7 @@ app.enableCors({
     .addTag('Recipes', 'Recipe management and recommendations')
     .addTag('Integrations', 'Third-party service integrations')
     .addServer('http://localhost:3000', 'Local Development')
-    .addServer('https://health-thrive.site', 'Production')
+    .addServer('https://api.health-thrive.site', 'Production')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig, {
