@@ -40,22 +40,6 @@ export class OnDemandController {
   }
 
   @UseGuards(AuthGuard)
-  @Get('videos/:id')
-  @ApiOperation({ summary: 'Get video by ID' })
-  @ApiResponse({ status: 200, description: 'Video retrieved.' })
-  async getVideo(@Param('id') id: string) {
-    return this.onDemandService.getById(id);
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('videos/:id/log')
-  @ApiOperation({ summary: 'Log video workout completion' })
-  @ApiResponse({ status: 201, description: 'Workout logged.' })
-  async logWorkout(@Param('id') id: string, @Body() body?: any) {
-    return this.onDemandService.logWorkout(id, body);
-  }
-
-  @UseGuards(AuthGuard)
   @Get('videos/all')
   @ApiOperation({ summary: 'Get all videos (admin)' })
   @ApiAdminOnly()
@@ -71,6 +55,24 @@ export class OnDemandController {
       throw err; // rethrow so Nest's exception filter returns appropriate response
     }
   }
+
+  @UseGuards(AuthGuard)
+  @Get('videos/:id')
+  @ApiOperation({ summary: 'Get video by ID' })
+  @ApiResponse({ status: 200, description: 'Video retrieved.' })
+  async getVideo(@Param('id') id: string) {
+    return this.onDemandService.getById(id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('videos/:id/log')
+  @ApiOperation({ summary: 'Log video workout completion' })
+  @ApiResponse({ status: 201, description: 'Workout logged.' })
+  async logWorkout(@Param('id') id: string, @Body() body?: any) {
+    return this.onDemandService.logWorkout(id, body);
+  }
+
+  
 
   @UseGuards(AuthGuard)
   @Post('videos')
