@@ -17,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { FitnessService } from './fitness.service';
 import {
@@ -171,6 +172,7 @@ export class FitnessController {
   @UseGuards(AuthGuard)
   @Post('seed')
   @ApiOperation({ summary: 'Seed default workouts' })
+  @ApiAdminOnly()
   @ApiResponse({ status: 201, description: 'Workouts seeded.' })
   async seed() {
     return this.fitnessService.seedDefaultWorkouts();

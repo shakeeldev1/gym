@@ -6,7 +6,9 @@ import {
   Query,
   Request,
   UseGuards,
+  Body,
 } from '@nestjs/common';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -37,8 +39,8 @@ export class PlansController {
   @Post('running/:id/start')
   @ApiOperation({ summary: 'Start a running plan' })
   @ApiResponse({ status: 201, description: 'Plan started.' })
-  async startRunningPlan(@Request() req, @Param('id') id: string) {
-    return this.plansService.startRunningPlan(req.user.id, id);
+  async startRunningPlan(@Request() req, @Param('id') id: string, @Body() body?: any) {
+    return this.plansService.startRunningPlan(req.user.id, id, body);
   }
 
   @UseGuards(AuthGuard)
@@ -83,13 +85,14 @@ export class PlansController {
   @Post('training/:id/start')
   @ApiOperation({ summary: 'Start a training plan' })
   @ApiResponse({ status: 201, description: 'Training plan started.' })
-  async startTrainingPlan(@Request() req, @Param('id') id: string) {
-    return this.plansService.startTrainingPlan(req.user.id, id);
+  async startTrainingPlan(@Request() req, @Param('id') id: string, @Body() body?: any) {
+    return this.plansService.startTrainingPlan(req.user.id, id, body);
   }
 
   @UseGuards(AuthGuard)
   @Post('seed')
   @ApiOperation({ summary: 'Seed default plans' })
+  @ApiAdminOnly()
   @ApiResponse({ status: 201, description: 'Plans seeded.' })
   async seed() {
     return this.plansService.seedDefaultPlans();

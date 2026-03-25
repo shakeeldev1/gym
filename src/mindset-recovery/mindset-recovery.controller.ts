@@ -27,8 +27,9 @@ import { UpdateMeditationDto } from './dto/update-meditation.dto';
 import { UpdateSleepDto } from './dto/update-sleep.dto';
 import { GetMindsetProgressDto } from './dto/get-progress.dto';
 import { RecoveryPlan } from './schemas/recovery-plan.schema';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 
-@ApiTags('Mindset Recovery')
+@ApiTags('Mindset Recovery', 'Meditation')
 @ApiBearerAuth('JWT-auth')
 @Controller('mindset-recovery')
 export class MindsetRecoveryController {
@@ -308,6 +309,7 @@ export class MindsetRecoveryController {
     summary: 'Approve sleep suggestion',
     description: 'Approve a sleep suggestion.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Suggestion ID' })
   @ApiResponse({
     status: 200,
@@ -330,6 +332,7 @@ export class MindsetRecoveryController {
     summary: 'Approve all sleep suggestions',
     description: 'Approve all sleep suggestions for a user.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -371,6 +374,7 @@ export class MindsetRecoveryController {
     summary: 'Approve meditation suggestion',
     description: 'Approve a meditation suggestion.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Suggestion ID' })
   @ApiResponse({
     status: 200,
@@ -393,6 +397,7 @@ export class MindsetRecoveryController {
     summary: 'Approve all meditation suggestions',
     description: 'Approve all meditation suggestions for a user.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -434,6 +439,7 @@ export class MindsetRecoveryController {
     summary: 'Approve breathwork suggestion',
     description: 'Approve a breathwork suggestion.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Suggestion ID' })
   @ApiResponse({
     status: 200,
@@ -456,6 +462,7 @@ export class MindsetRecoveryController {
     summary: 'Approve all breathwork suggestions',
     description: 'Approve all breathwork suggestions for a user.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({
     status: 200,

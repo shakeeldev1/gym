@@ -23,6 +23,7 @@ import { CreateHabitDto } from './dto/create-habit.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { LogHabitDto } from './dto/log-habit.dto';
 import { HabitCalendarEntry } from './types';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 
 @ApiTags('Habits')
 @Controller('habits')
@@ -64,6 +65,7 @@ export class HabitsController {
     description:
       'Assign a habit to a specific user. Only accessible to admin and coach roles.',
   })
+  @ApiAdminOnly()
   @ApiParam({
     name: 'userId',
     description: 'Target user ID',
@@ -272,6 +274,7 @@ export class HabitsController {
     summary: 'Create habit suggestion',
     description: 'Admin/Coach creates a habit suggestion for a user.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'userId', description: 'Target User ID' })
   @ApiResponse({ status: 201, description: 'Suggestion created successfully.' })
   async createHabitSuggestion(
@@ -298,6 +301,7 @@ export class HabitsController {
     summary: 'Get pending suggestions',
     description: 'Get all pending habit suggestions (Admin/Coach only).',
   })
+  @ApiAdminOnly()
   @ApiResponse({
     status: 200,
     description: 'Pending suggestions retrieved successfully.',
@@ -322,6 +326,7 @@ export class HabitsController {
     summary: 'Approve suggestion',
     description: 'Approve a habit suggestion and convert it to a real habit.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Suggestion ID' })
   @ApiResponse({
     status: 201,
@@ -350,6 +355,7 @@ export class HabitsController {
     summary: 'Reject suggestion',
     description: 'Reject a habit suggestion.',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Suggestion ID' })
   @ApiBody({
     schema: { type: 'object', properties: { reason: { type: 'string' } } },

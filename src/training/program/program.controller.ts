@@ -1,9 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ProgramService } from './program.service';
 import { CreateProgramDto } from './dtos/create-program.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { updateProgramDto } from './dtos/update-program.dto';
 
+@ApiTags('Training')
 @Controller('training/program')
 export class ProgramController {
     constructor(private readonly programService: ProgramService) { }
@@ -40,6 +42,7 @@ export class ProgramController {
 
     @UseGuards(AuthGuard)
     @Post(':id/assign/:userId')
+    @ApiAdminOnly()
     assignProgramToUser(@Param('id') id: string, @Param('userId') userId: string) {
         return this.programService.assignToUser(id, { assignedTo: userId });
     }

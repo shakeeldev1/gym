@@ -23,6 +23,7 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { ChatService } from './chat.service';
@@ -191,6 +192,7 @@ export class ChatController {
     summary: 'Dashboard broadcast',
     description: 'Send a broadcast from the dashboard to target users.',
   })
+  @ApiAdminOnly()
   @ApiResponse({
     status: 201,
     description: 'Dashboard broadcast sent successfully.',

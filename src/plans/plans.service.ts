@@ -22,7 +22,7 @@ export class PlansService {
     return this.runningPlanModel.find(filter).sort({ durationWeeks: 1 }).exec();
   }
 
-  async startRunningPlan(userId: string, planId: string): Promise<UserPlanProgress> {
+  async startRunningPlan(userId: string, planId: string, body?: any): Promise<UserPlanProgress> {
     const plan = await this.runningPlanModel.findById(planId);
     if (!plan) throw new NotFoundException('Running plan not found');
 
@@ -69,7 +69,7 @@ export class PlansService {
     return this.getTrainingPlans('home');
   }
 
-  async startTrainingPlan(userId: string, planId: string): Promise<UserPlanProgress> {
+  async startTrainingPlan(userId: string, planId: string, body?: any): Promise<UserPlanProgress> {
     const plan = await this.trainingPlanModel.findById(planId);
     if (!plan) throw new NotFoundException('Training plan not found');
 

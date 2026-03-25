@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Patch, Request, UseGuards, Param } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from "@nestjs/swagger";
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { UserService } from "./user.service";
 import { AuthGuard } from "src/auth/auth.guard";
 import { ChangePasswordDto } from "./dto/changePassword";
@@ -137,6 +138,7 @@ export class UserController {
         summary: 'Update user role',
         description: 'Update user role (user, coach, admin). Admin access required.'
     })
+    @ApiAdminOnly()
     @ApiParam({ name: 'id', description: 'User ID to update', example: '507f1f77bcf86cd799439011' })
     @ApiResponse({ 
         status: 200, 

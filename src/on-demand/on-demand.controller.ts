@@ -5,6 +5,7 @@ import {
   Post,
   Query,
   UseGuards,
+  Body,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -13,6 +14,7 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { OnDemandService } from './on-demand.service';
 
@@ -44,13 +46,14 @@ export class OnDemandController {
   @Post('videos/:id/log')
   @ApiOperation({ summary: 'Log video workout completion' })
   @ApiResponse({ status: 201, description: 'Workout logged.' })
-  async logWorkout(@Param('id') id: string) {
-    return this.onDemandService.logWorkout(id);
+  async logWorkout(@Param('id') id: string, @Body() body?: any) {
+    return this.onDemandService.logWorkout(id, body);
   }
 
   @UseGuards(AuthGuard)
   @Post('seed')
   @ApiOperation({ summary: 'Seed default videos' })
+  @ApiAdminOnly()
   @ApiResponse({ status: 201, description: 'Videos seeded.' })
   async seed() {
     return this.onDemandService.seed();

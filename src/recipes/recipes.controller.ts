@@ -20,6 +20,7 @@ import {
   ApiQuery,
   ApiParam,
 } from '@nestjs/swagger';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import { WellnessRecipesService } from './recipes.service';
 import { CreateRecipeDto, UpdateRecipeDto } from './dto/recipe.dto';
@@ -112,6 +113,7 @@ export class WellnessRecipesController {
     summary: 'Get all recipes (Admin)',
     description: 'Retrieve ALL recipes including inactive ones (Admin only).',
   })
+  @ApiAdminOnly()
   @ApiQuery({
     name: 'limit',
     required: false,
@@ -162,6 +164,7 @@ export class WellnessRecipesController {
     summary: 'Create recipe',
     description: 'Create a new wellness recipe (Admin/Coach only).',
   })
+  @ApiAdminOnly()
   @ApiResponse({ status: 201, description: 'Recipe created successfully.' })
   async createRecipe(@Request() req, @Body() dto: CreateRecipeDto) {
     const user = req.user;
@@ -196,6 +199,7 @@ export class WellnessRecipesController {
     summary: 'Update recipe',
     description: 'Update an existing recipe (Admin/Coach only).',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Recipe ID' })
   @ApiResponse({ status: 200, description: 'Recipe updated successfully.' })
   async updateRecipe(
@@ -232,6 +236,7 @@ export class WellnessRecipesController {
     summary: 'Delete recipe',
     description: 'Soft delete a recipe (Admin/Coach only).',
   })
+  @ApiAdminOnly()
   @ApiParam({ name: 'id', description: 'Recipe ID' })
   @ApiResponse({ status: 200, description: 'Recipe deleted successfully.' })
   async deleteRecipe(@Request() req, @Param('id') id: string) {

@@ -22,8 +22,13 @@ export class OnDemandService {
     return video;
   }
 
-  async logWorkout(id: string): Promise<{ message: string }> {
+  async logWorkout(id: string, body?: any): Promise<{ message: string }> {
+    // Increment view count and optionally record metadata from body
     await this.videoModel.findByIdAndUpdate(id, { $inc: { viewCount: 1 } });
+
+    // TODO: If workout logs collection exists, save details (duration, device, etc.)
+    // For now, accept and ignore body to preserve payload coming from clients.
+
     return { message: 'Workout logged' };
   }
 

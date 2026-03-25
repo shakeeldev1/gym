@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Fasting, FastingDocument } from './schemas/fasting.schema';
 import { Model, Types } from 'mongoose';
@@ -34,7 +34,7 @@ export class FastingService {
             isActive: true
         });
 
-        if (!activeFast) throw new Error('No active fast found');
+        if (!activeFast) throw new NotFoundException('No active fast found');
 
         const endTime = new Date();
         const durationHours = (endTime.getTime() - activeFast.startTime.getTime()) / 1000 / 3600;
