@@ -60,9 +60,16 @@ export class OnDemandController {
   @ApiOperation({ summary: 'Get all videos (admin)' })
   @ApiAdminOnly()
   @ApiResponse({ status: 200, description: 'All videos retrieved.' })
-  async getAllForAdmin() {
-    const videos = await this.onDemandService.getAllForAdmin();
-    return { data: videos };
+  async getAllForAdmin(@Query('limit') limit?: number, @Query('skip') skip?: number) {
+    try {
+      const videos = await this.onDemandService.getAllForAdmin();
+      return { data: videos };
+    } catch (err) {
+      // Log server-side error for diagnosis
+      // eslint-disable-next-line no-console
+      console.error('Failed to get all on-demand videos (admin):', err?.message || err);
+      throw err; // rethrow so Nest's exception filter returns appropriate response
+    }
   }
 
   @UseGuards(AuthGuard)
