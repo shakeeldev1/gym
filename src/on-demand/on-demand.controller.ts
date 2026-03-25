@@ -3,6 +3,8 @@ import {
   Get,
   Param,
   Post,
+  Put,
+  Delete,
   Query,
   UseGuards,
   Body,
@@ -13,10 +15,13 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiQuery,
+  ApiBody,
 } from '@nestjs/swagger';
 import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { OnDemandService } from './on-demand.service';
+import { CreateOnDemandDto } from './dto/create-on-demand.dto';
+import { UpdateOnDemandDto } from './dto/update-on-demand.dto';
 
 @ApiTags('On Demand')
 @ApiBearerAuth('JWT-auth')
@@ -48,6 +53,47 @@ export class OnDemandController {
   @ApiResponse({ status: 201, description: 'Workout logged.' })
   async logWorkout(@Param('id') id: string, @Body() body?: any) {
     return this.onDemandService.logWorkout(id, body);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('videos/all')
+  @ApiOperation({ summary: 'Get all videos (admin)' })
+  @ApiAdminOnly()
+  @ApiResponse({ status: 200, description: 'All videos retrieved.' })
+  async getAllForAdmin() {
+    const videos = await this.onDemandService.getAllForAdmin();
+    return { data: videos };
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('videos')
+  @ApiOperation({ summary: 'Create a new on-demand video (admin)' })
+  @ApiAdminOnly()
+  @ApiBody({ type: CreateOnDemandDto })
+  @ApiResponse({ status: 201, description: 'Video created.' })
+  async create(@Body() body: CreateOnDemandDto) {
+    const created = await this.onDemandService.create(body);
+    return { data: created };
+  }
+
+  @UseGuards(AuthGuard)
+  @Put('videos/:id')
+  @ApiOperation({ summary: 'Update on-demand video (admin)' })
+  @ApiAdminOnly()
+  @ApiBody({ type: UpdateOnDemandDto })
+  @ApiResponse({ status: 200, description: 'Video updated.' })
+  async update(@Param('id') id: string, @Body() body: UpdateOnDemandDto) {
+    const updated = await this.onDemandService.update(id, body);
+    return { data: updated };
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete('videos/:id')
+  @ApiOperation({ summary: 'Delete on-demand video (admin)' })
+  @ApiAdminOnly()
+  @ApiResponse({ status: 200, description: 'Video deleted.' })
+  async remove(@Param('id') id: string) {
+    return this.onDemandService.remove(id);
   }
 
   @UseGuards(AuthGuard)

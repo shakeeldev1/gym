@@ -32,6 +32,28 @@ export class OnDemandService {
     return { message: 'Workout logged' };
   }
 
+  async create(dto: any): Promise<OnDemandVideo> {
+    const created = new this.videoModel(dto);
+    return created.save();
+  }
+
+  async update(id: string, dto: any): Promise<OnDemandVideo> {
+    const updated = await this.videoModel.findByIdAndUpdate(id, { $set: dto }, { new: true });
+    if (!updated) throw new NotFoundException('Video not found');
+    return updated;
+  }
+
+  async remove(id: string): Promise<{ message: string }> {
+    const found = await this.videoModel.findById(id);
+    if (!found) throw new NotFoundException('Video not found');
+    await this.videoModel.findByIdAndDelete(id);
+    return { message: 'Video deleted' };
+  }
+
+  async getAllForAdmin(): Promise<OnDemandVideo[]> {
+    return this.videoModel.find({}).sort({ createdAt: -1 }).exec();
+  }
+
   async seed(): Promise<{ message: string; count: number }> {
     const count = await this.videoModel.countDocuments();
     if (count > 0) return { message: 'Videos already seeded', count };
