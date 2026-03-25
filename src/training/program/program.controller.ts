@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { ApiAdminOnly } from 'src/common/decorators/api-admin.decorator';
 import { ProgramService } from './program.service';
 import { CreateProgramDto } from './dtos/create-program.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
